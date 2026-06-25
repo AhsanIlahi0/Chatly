@@ -1,3 +1,4 @@
+import Avatar from "./avatar";
 function UserItem({ user, isActive, onClick }) {
     return (
         <div 
@@ -10,13 +11,7 @@ function UserItem({ user, isActive, onClick }) {
         >
             {/* Avatar block wrapper */}
             <div className="w-12 h-12 rounded-full mr-3 bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 dark:bg-white/20">
-                {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-lg font-bold text-slate-700 bg-gradient-to-br from-slate-200 to-slate-100 dark:text-white dark:from-white/20 dark:to-white/10">
-                        {user.name.charAt(0).toUpperCase()}
-                    </div>
-                )}
+                <Avatar user={user} />  
             </div>
 
             {/* Information strings info */}

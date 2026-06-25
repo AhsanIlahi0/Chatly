@@ -1,6 +1,7 @@
 import closeIcon from '../../images/close.png' // Adjust the paths (../) to match your folder structure
 import closeIconDark from '../../images/closeDark.png' // Adjust the paths (../) to match your folder structure
 import { useDarkMode } from '../../hooks/useDarkMode'
+import Avatar from '../sidebar/avatar';
 function DetailTab({ activeUser, isOpen, onClose, theme }) {
     //set deail tab to user 1 for testing;
     // const [theme, toggleTheme] = useDarkMode();
@@ -54,12 +55,8 @@ function DetailTab({ activeUser, isOpen, onClose, theme }) {
                 ) : (
                     <div className="p-6 ">
                         <div className="flex flex-col items-center gap-4">
-                            <div className="h-24 w-24 rounded-full overflow-hidden bg-sky-500 flex items-center justify-center text-2xl font-semibold text-white shadow-sm dark:bg-sky-400 dark:text-slate-950">
-                                {activeUser.avatar ? (
-                                    <img src={activeUser.avatar} alt={activeUser.name} className="h-full w-full object-cover" />
-                                ) : (
-                                    activeUser.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
-                                )}
+                            <div className="h-24 w-24 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center text-2xl font-semibold text-white shadow-sm dark:bg-blue-600 dark:text-slate-950">
+                                <Avatar user={activeUser} />
                             </div>
 
                             <div className="text-center">

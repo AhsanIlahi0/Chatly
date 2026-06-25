@@ -3,6 +3,7 @@ import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import info_icon_light from '../../images/info.png';
 import info_icon_dark from '../../images/info_white.png';
+import Avatar from '../sidebar/avatar';
 // import { useDarkMode } from '../../hooks/useDarkMode';
 
 
@@ -126,11 +127,7 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onSendMessa
             <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-6 py-4 shadow-sm backdrop-blur-sm dark:border-slate-800/40 dark:bg-slate-950/20">
                 <div className="group flex min-w-0 cursor-pointer items-center gap-3 select-none">
                     <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 font-semibold text-white shadow-md">
-                        {user?.avatar ? (
-                            <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
-                        ) : (
-                            user?.name.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase()
-                        )}
+                        <Avatar user={user} />
                     </div>
                     <div className="min-w-0">
                         <h2 className="truncate text-base font-semibold text-slate-900 group-hover:underline dark:text-slate-100">{user?.name}</h2>
