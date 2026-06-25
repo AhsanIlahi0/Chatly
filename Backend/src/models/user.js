@@ -42,16 +42,16 @@ const UserSchema = new mongoose.Schema({
 }, { timestamps: true }); // Automatically adds `createdAt` (joined date) and `updatedAt`
 
 // --- PRE-SAVE PASSWORD HASHING HOOK ---
-UserSchema.pre('save', async function(next) {
+UserSchema.pre('save', async function() {
     // Only hash the password if it's new or being updated
-    if (!this.isModified('password')) return next();
+    if (!this.isModified('password')) return;
 
     try {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
-        next();
     } catch (error) {
-        next(error);
+        // In async hooks, simply throw the error instead of calling next(error)
+        throw error; 
     }
 });
 

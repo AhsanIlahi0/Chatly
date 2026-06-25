@@ -69,19 +69,21 @@ function MessageBubble({ message }) {
                     }`}>
                     <span>{formatTime(message.time)}</span>
 
-                    {message.sent && (
+
+                   {/* {message.sent && (
                         <span
-                            className={`material-symbols-outlined text-[14px] leading-none select-none ${message.status === 'read'
-                                    ? 'text-sky-400 dark:text-blue-600 font-bold'
-                                    : 'opacity-60 text-slate-300 dark:text-slate-900'
-                                }`}
-                        >
-                            {/* 🛠️ Safe Fallback: mapping undefined or 'sent' status cleanly to a single checkmark */}
+                        className={`material-symbols-outlined text-[14px] leading-none select-none ${message.status === 'read'
+                            ? 'text-sky-400 dark:text-blue-600 font-bold'
+                            : 'opacity-60 text-slate-300 dark:text-slate-900'
+                            }`}
+                            >
+                            {/* 🛠️ Safe Fallback: mapping undefined or 'sent' status cleanly to a single checkmark }
                             {(!message.status || message.status === 'sent') && 'done'}
                             {message.status === 'delivered' && 'done_all'}
                             {message.status === 'read' && 'done_all'}
-                        </span>
-                    )}
+                            </span>
+                        )} */}
+                    
                 </div>
             </div>
         </div>

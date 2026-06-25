@@ -6,12 +6,14 @@ const mongoose = require('mongoose');
 const chatSocket = require('./sockets/chatSocket');
 const messageRoutes = require('./routes/messageRoutes');
 const cors = require('cors');
+const authRoutes = require('./routes/auth');
+
 require('dotenv').config();
 
 const app = express();
 app.use(cors()); // Enable CORS for all routes
+app.use(express.json());
 const server = http.createServer(app); // Connect Express app into an HTTP server instance
-
 // Initialize Socket.io with CORS rules allowing your React frontend port access
 // Inside your Backend file where Socket.io is initialized
 const io = require('socket.io')(server, {
@@ -20,15 +22,37 @@ const io = require('socket.io')(server, {
         methods: ["GET", "POST"]
     },
     // 🛠️ ADD THIS LINE (Raises the limit to 20MB, adjust as needed)
-    maxHttpBufferSize: 2e7 
+    maxHttpBufferSize: 2e7
 });
 app.use('/api/messages', messageRoutes);
-
+app.use('/api/auth', authRoutes);
 
 // Pass the configured io instance to our modular socket layout script
 chatSocket(io);
 mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chatly')
-    .then(() => console.log('📦 Connected to MongoDB successfully!'))
+    .then(async () => {
+        console.log('📦 Connected to MongoDB successfully!');
+
+        // 🚀 AUTO-SEED TEST USERS FOR POWERSHELL WORKAROUND
+        try {
+            const User = require('./models/User'); // Double check this path to your User schema file
+
+            const usersToSeed = [
+                { name: "Alice Johnson", email: "alice@gmail.com", password: "password123" },
+                { name: "Bob Smith", email: "bob@gmail.com", password: "password123" }
+            ];
+
+            for (const userData of usersToSeed) {
+                const exists = await User.findOne({ email: userData.email });
+                if (!exists) {
+                    await User.create(userData);
+                    console.log(`🌱 Seeded test user: ${userData.email}`);
+                }
+            }
+        } catch (seedErr) {
+            console.error("Auto-seeding skipped/failed:", seedErr.message);
+        }
+    })
     .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
 const PORT = process.env.PORT || 5000;

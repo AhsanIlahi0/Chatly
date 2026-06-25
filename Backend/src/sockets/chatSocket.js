@@ -5,10 +5,23 @@ const chatSocket = (io) => {
 
     io.on('connection', (socket) => {
 
-        socket.on('registerUser', (userId) => {
+        socket.on("registerUser", async (userId) => {
             onlineUsers.set(userId, socket.id);
-            io.emit('userStatusChanged', { userId, status: 'online' });
-            
+
+            // 🚀 FETCH USER INFO AND BROADCAST PRESENCE
+            try {
+                const userDetails = await User.findById(userId);
+                if (userDetails) {
+                    // Tell every single active socket client that a new user went live
+                    socket.broadcast.emit("userStatusChanged", {
+                        id: userDetails._id,
+                        username: userDetails.username,
+                        unread: 0
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
         });
 
         // 🛠️ SAVE & EMIT REAL-TIME INTERACTION

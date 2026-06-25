@@ -7,7 +7,7 @@ import Avatar from '../sidebar/avatar';
 // import { useDarkMode } from '../../hooks/useDarkMode';
 
 
-function ChatContainer({ theme, setTheme, activeUser, messages = [], isDetailTabOpen, onSendMessage, onDeselectUser, showProfile,onCloseProfile, onOpenProfile, onToggleProfile }) {
+function ChatContainer({ theme, setTheme, activeUser, messages = [],onLogout, isDetailTabOpen, onSendMessage, onDeselectUser, showProfile, onCloseProfile, onOpenProfile, onToggleProfile }) {
     // const [theme, toggleTheme] = useDarkMode();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
@@ -31,14 +31,14 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], isDetailTab
             if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
 
             if (event.key === 'Escape') {
-                if(isDetailTabOpen) {
+                if (isDetailTabOpen) {
                     onCloseProfile();
                 }
-                else{
+                else {
                     onDeselectUser();
                 }
             }
-        };            
+        };
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
@@ -125,6 +125,32 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], isDetailTab
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+    // 🚀 Unified Scroll Anchor Controller
+    // Keep track of the last message count to see if a single new message was added
+    const prevMessageCountRef = useRef(messages.length);
+
+    useEffect(() => {
+        if (!viewState.isSwitching && viewState.currentMessages.length > 0) {
+            const currentCount = viewState.currentMessages.length;
+            const prevCount = prevMessageCountRef.current;
+
+            // 🚀 Determine scroll speed context
+            // If the count only went up by 1 or 2, it's a live message -> scroll smoothly.
+            // If it's a massive jump or initial render -> snap instantly.
+            const isLiveNewMessage = currentCount - prevCount > 0 && currentCount - prevCount <= 2;
+
+            const scrollTimeout = setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({
+                    behavior: isLiveNewMessage ? 'smooth' : 'auto'
+                });
+            }, 30);
+
+            // Update the ref tracker for the next cycle
+            prevMessageCountRef.current = currentCount;
+
+            return () => clearTimeout(scrollTimeout);
+        }
+    }, [viewState.currentMessages, viewState.isSwitching]);
 
     const renderChatPanel = (user, panelMessages, panelStateClassName, attachScrollTarget = true) => (
         <div className={`absolute inset-0 flex h-full min-h-0 flex-col bg-white transition-all duration-500 ease-out dark:bg-transparent ${panelStateClassName}`}>
@@ -142,6 +168,14 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], isDetailTab
                 </div>
 
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
+                     <div className="  border-t border-white/10 bg-transparent text-sm font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-300 transition-colors">
+                <button
+                    onClick={onLogout}
+                    className="cursor-pointer p-3 w-full rounded-xl bg-rose-500/10 hover:bg-rose-500 py-2.5 text-sm font-semibold text-rose-400 hover:text-white border border-rose-500/20 transition-all"
+                >
+                    Sign Out 
+                </button>
+            </div>
                     <button
                         type="button"
                         onClick={setTheme}
@@ -220,7 +254,7 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], isDetailTab
                     <div className="self-center rounded-full bg-white/80 px-4 py-1 text-xs font-medium text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-700">Today</div>
 
                     {panelMessages.map((message, index) => (
-                        <MessageBubble key={index} message={message } />
+                        <MessageBubble key={index} message={message} />
                     ))}
 
                     {attachScrollTarget && <div ref={messagesEndRef} />}

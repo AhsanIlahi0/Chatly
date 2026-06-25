@@ -2,7 +2,7 @@ import { useState } from 'react';
 import SearchInput from './SearchInput';
 import UserItem from './UserItem';
 
-function Sidebar({ users = [], activeUserId, onSelectUser }) {
+function Sidebar({ users = [], activeUserId, onSelectUser, onLogout }) {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredUsers = users.filter(user =>
@@ -45,6 +45,7 @@ function Sidebar({ users = [], activeUserId, onSelectUser }) {
                     <div className="px-5 py-10 text-center text-sm text-slate-400 dark:text-white/60">No users found</div>
                 )}
             </div>
+           
         </div>
     );
 }
