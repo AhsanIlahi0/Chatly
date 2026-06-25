@@ -35,12 +35,13 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged) => 
     }, [currentUserId, onMessageReceived, onStatusChanged]);
 
     // Expose a quick trigger to emit outgoing chat messages down down the websocket pipe
-    const emitSendMessage = (receiverId, text) => {
+    const emitSendMessage = (receiverId, text, file) => {
         if (socketRef.current) {
             socketRef.current.emit('sendMessage', {
                 senderId: currentUserId,
                 receiverId,
-                text
+                text,
+                file
             });
         }
     };

@@ -8,6 +8,7 @@ import { useSocket } from './hooks/useSocket';
 import axios from 'axios'; // Import axios for HTTP requests
 // At the top of App.jsx
 import { useMemo, useState, useCallback } from "react"; // ← Add useCallback here!
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 export const initialUsers = [
     {
@@ -104,8 +105,9 @@ function App() {
                     {
                         id: msg.id || Date.now().toString(),
                         text: msg.text,
+                        file: msg.file, // 🛠️ GRAB THE FILE FROM THE SOCKET HERE
                         time: new Date(msg.time),
-                        sent: !isReceived // If it's NOT received, then sent = true (right side)
+                        sent: !isReceived
                     }
                 ]
             };
@@ -118,59 +120,148 @@ function App() {
     const activeMessages = activeUserId ? conversations[activeUserId] ?? [] : [];
 
     // Inside App.jsx
-const handleSelectUser = async (userId) => {
-    setActiveUserId(userId);
-    
-    // Clear unread counts locally
-    setUsers((currentUsers) =>
-        currentUsers.map((user) =>
-            user.id === userId ? { ...user, unread: 0 } : user
-        )
-    );
+    const handleSelectUser = async (userId) => {
+        setActiveUserId(userId);
 
-    // 🛠️ FETCH STORED CHAT HISTORY FROM DATABASE
-    try {
-        const res = await axios.get(`http://localhost:5000/api/messages/${currentUserId}/${userId}`);
-        
-        // Map the MongoDB document array fields to match your frontend <MessageBubble /> properties
-        const formattedMessages = res.data.map(msg => ({
-            id: msg._id,
-            text: msg.text,
-            time: new Date(msg.createdAt),
-            sent: msg.sender === currentUserId // If the database sender matches me, it's a sent message (right side)
-        }));
+        // Clear unread counts locally
+        setUsers((currentUsers) =>
+            currentUsers.map((user) =>
+                user.id === userId ? { ...user, unread: 0 } : user
+            )
+        );
 
-        // Insert the database messages directly into your conversation state pool
-        setConversations(prev => ({
-            ...prev,
-            [userId]: formattedMessages
-        }));
-    } catch (err) {
-        console.error("Failed to pull message history from MongoDB cluster:", err);
-    }
-};
-    const handleSendMessage = (messageText) => {
+        // 🛠️ FETCH STORED CHAT HISTORY FROM DATABASE
+        // Inside App.jsx -> handleSelectUser (or your history fetch useEffect)
+        try {
+            const res = await axios.get(`http://localhost:5000/api/messages/${currentUserId}/${userId}`);
+
+            const formattedMessages = res.data.map(msg => ({
+                id: msg._id,
+                text: msg.text,
+                file: msg.file, // 👈 ADD THIS LINE! Extract the file from the DB response
+                time: new Date(msg.createdAt),
+                sent: msg.sender === currentUserId
+            }));
+
+            setConversations(prev => ({
+                ...prev,
+                [userId]: formattedMessages
+            }));
+        } catch (err) {
+            console.error("Failed to pull message history:", err);
+        }
+    };
+    const handleSendMessage = async (messageText, selectedFile) => {
         if (!activeUserId) return;
 
-        // Send it through the websocket
-        emitSendMessage(activeUserId, messageText);
+        // Helper function to handle socket emission and state update
+        const processAndSendMessage = (text, filePayload = null) => {
+            emitSendMessage(activeUserId, text, filePayload);
 
-        // Update local state cleanly (Optimistic UI Update)
-        setConversations(prev => {
-            const existingChat = prev[activeUserId] || [];
-            return {
-                ...prev,
-                [activeUserId]: [
-                    ...existingChat,
-                    {
-                        id: Date.now().toString(),
-                        text: messageText,
-                        time: new Date(),
-                        sent: true // Outgoing text, align right
+            setConversations(prev => {
+                const existingChat = prev[activeUserId] || [];
+                return {
+                    ...prev,
+                    [activeUserId]: [
+                        ...existingChat,
+                        {
+                            id: Date.now().toString(),
+                            text: text,
+                            time: new Date(),
+                            sent: true,
+                            file: filePayload
+                        }
+                    ]
+                };
+            });
+        };
+
+        // If the user attached a file (Image, PDF, etc.)
+       if (selectedFile) {
+    try {
+        let fileToUpload = selectedFile;
+
+        // 🛠️ AUTO-COMPRESSION FOR HEAVY IMAGES
+        if (selectedFile.type.startsWith("image/") && selectedFile.size > 2 * 1024 * 1024) {
+            console.log("Compressing heavy image...");
+            fileToUpload = await new Promise((resolve) => {
+                const img = new Image();
+                img.src = URL.createObjectURL(selectedFile);
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const ctx = canvas.getContext("2d");
+
+                    // Maintain aspect ratio but cap max width/height at 1200px
+                    const MAX_WIDTH = 1200;
+                    const MAX_HEIGHT = 1200;
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
                     }
-                ]
-            };
-        });
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Convert to a compressed JPEG blob (0.7 quality = 70% compression)
+                    canvas.toBlob((blob) => {
+                        const compressedFile = new File([blob], selectedFile.name, {
+                            type: "image/jpeg",
+                        });
+                        resolve(compressedFile);
+                    }, "image/jpeg", 0.7);
+                };
+            });
+            console.log(`Compressed! New size: ${(fileToUpload.size / 1024 / 1024).toFixed(2)} MB`);
+        }
+
+        // Proceed with your Cloudinary Form Upload
+        const formData = new FormData();
+        formData.append("file", fileToUpload); // Uses the compressed file if it was an image!
+        formData.append("upload_preset", "xgx72g5u"); 
+        
+        const resourceType = fileToUpload.type.startsWith("image/") ? "image" : "raw";
+        formData.append("resource_type", resourceType);
+
+        const response = await fetch(
+            `https://api.cloudinary.com/v1_1/dhwdd6d0e/${resourceType}/upload`, 
+            { method: "POST", body: formData }
+        );
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.log("EXACT CLOUDINARY ERROR:", JSON.stringify(errorData));
+            throw new Error("Failed to upload file to Cloudinary");
+        }
+
+        const data = await response.json();
+
+        const filePayload = {
+            name: fileToUpload.name,
+            type: fileToUpload.type,
+            url: data.secure_url 
+        };
+
+        processAndSendMessage(messageText, filePayload);
+        
+    } catch (error) {
+        console.error("Cloudinary upload workflow failed:", error);
+        alert("Could not upload file. Please check connection.");
+    }
+} else {
+            // Text-only message path
+            processAndSendMessage(messageText, null);
+        }
     };
 
     return (
@@ -186,7 +277,9 @@ const handleSelectUser = async (userId) => {
                 activeUser={activeUser}
                 messages={activeMessages}
                 onSendMessage={handleSendMessage}
-                onDeselectUser={() => setActiveUserId(null)}
+                isDetailTabOpen={isDetailTabOpen}
+                onCloseProfile={() => setIsDetailTabOpen(false)}
+                onDeselectUser={() => { setActiveUserId(null) }}
                 onOpenProfile={() => setIsDetailTabOpen(true)}
                 onToggleProfile={() => setIsDetailTabOpen((currentState) => !currentState)}
             />

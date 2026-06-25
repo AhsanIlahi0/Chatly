@@ -7,7 +7,7 @@ import Avatar from '../sidebar/avatar';
 // import { useDarkMode } from '../../hooks/useDarkMode';
 
 
-function ChatContainer({ theme, setTheme, activeUser, messages = [], onSendMessage, onDeselectUser, showProfile, onOpenProfile, onToggleProfile }) {
+function ChatContainer({ theme, setTheme, activeUser, messages = [], isDetailTabOpen, onSendMessage, onDeselectUser, showProfile,onCloseProfile, onOpenProfile, onToggleProfile }) {
     // const [theme, toggleTheme] = useDarkMode();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
@@ -31,15 +31,19 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onSendMessa
             if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
 
             if (event.key === 'Escape') {
-                onDeselectUser();
+                if(isDetailTabOpen) {
+                    onCloseProfile();
+                }
+                else{
+                    onDeselectUser();
+                }
             }
-        };
-
+        };            
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onDeselectUser]);
+    }, [onCloseProfile, onDeselectUser]);
 
     useEffect(() => {
         setViewState((currentState) => {
@@ -200,7 +204,7 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onSendMessa
                                 <hr className="my-1 border-slate-100 dark:border-slate-800" />
 
                                 <button
-                                    onClick={() => { onDeselectUser(); setIsMenuOpen(false); }}
+                                    onClick={() => { onDeselectUser(); setIsMenuOpen(false); onCloseProfile(); }}
                                     className="w-full px-4 py-2 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
                                 >
                                     Close Conversation

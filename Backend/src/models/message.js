@@ -13,13 +13,27 @@ const MessageSchema = new mongoose.Schema({
     },
     text: {
         type: String,
-        required: true,
         trim: true
+        // 🛠️ REMOVED: required: true (Allows users to send standalone files/images)
+    },
+    file: {
+        url: { 
+            type: String, 
+            trim: true 
+        }, // Stores the Base64 string or cloud storage URL
+        name: { 
+            type: String, 
+            trim: true 
+        }, // e.g., "screenshot.png" or "document.pdf"
+        type: { 
+            type: String, 
+            trim: true 
+        }  // e.g., "image/png" or "application/pdf"
     },
     status: {
         type: String,
         enum: ['sent', 'delivered', 'read'],
-        default: 'sent'
+        default: 'read'
     }
 }, { timestamps: true }); // Automatically injects `createdAt` and `updatedAt` field timestamps
 

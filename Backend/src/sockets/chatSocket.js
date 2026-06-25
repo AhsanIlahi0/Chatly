@@ -8,33 +8,39 @@ const chatSocket = (io) => {
         socket.on('registerUser', (userId) => {
             onlineUsers.set(userId, socket.id);
             io.emit('userStatusChanged', { userId, status: 'online' });
+            
         });
 
         // 🛠️ SAVE & EMIT REAL-TIME INTERACTION
+        // Inside Backend/src/sockets/chatSocket.js
+        // Inside your Backend socket file
         socket.on('sendMessage', async (messageData) => {
-            const { senderId, receiverId, text } = messageData;
+            // 1. Destructure the file field from the incoming message data
+            const { senderId, receiverId, text, file } = messageData;
 
             try {
-                // 1. Commit the message directly to the MongoDB cluster
+                // 2. Insert it cleanly into your Mongoose save statement
                 const newMessage = await Message.create({
                     sender: senderId,
                     receiver: receiverId,
-                    text: text
+                    text: text,
+                    file: file // 👈 ENSURE THIS LINE IS ACTIVE
                 });
 
+                // 3. Emit it live to the receiver exactly like before
                 const targetSocketId = onlineUsers.get(receiverId);
-
-                // 2. Forward the complete payload down the socket pipe to the recipient
                 if (targetSocketId) {
                     io.to(targetSocketId).emit('receiveMessage', {
-                        id: newMessage._id, // Pass real database generated ID
+                        id: newMessage._id,
                         senderId,
+                        receiverId,
                         text,
+                        file, // Send it out to the active listener
                         time: newMessage.createdAt
                     });
                 }
             } catch (err) {
-                console.error("Socket failed to process message entry:", err);
+                console.error("Error saving message with file asset:", err);
             }
         });
         // 3. Handle sudden disconnections

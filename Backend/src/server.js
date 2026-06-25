@@ -13,13 +13,17 @@ app.use(cors()); // Enable CORS for all routes
 const server = http.createServer(app); // Connect Express app into an HTTP server instance
 
 // Initialize Socket.io with CORS rules allowing your React frontend port access
-const io = new Server(server, {
+// Inside your Backend file where Socket.io is initialized
+const io = require('socket.io')(server, {
     cors: {
-        origin: "http://localhost:5173", // Your default Vite React dev port
+        origin: "http://localhost:5173", // Your frontend URL
         methods: ["GET", "POST"]
-    }
+    },
+    // 🛠️ ADD THIS LINE (Raises the limit to 20MB, adjust as needed)
+    maxHttpBufferSize: 2e7 
 });
 app.use('/api/messages', messageRoutes);
+
 
 // Pass the configured io instance to our modular socket layout script
 chatSocket(io);
