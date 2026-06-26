@@ -1,42 +1,179 @@
 # 💬 Chatly — Enterprise Real-Time Chat Engine
 
-A polished, full-stack real-time chat application built using the MERN stack (MongoDB, Express, React, Node.js) and enhanced with bi-directional WebSocket communication via Socket.io. Features secure session routing, a responsive fluid UI layout, dynamic cloud media management, and real-time synchronization pipelines.
+A modern full-stack real-time chat application built with the **MERN Stack** (MongoDB, Express.js, React.js, Node.js) and **Socket.io** for instant messaging. Chatly features secure authentication, real-time communication, cloud-based profile image management, and a responsive user interface designed for a seamless messaging experience.
 
 ---
 
-## ✨ Features
+## 🚀 Features
 
-- **🔒 Sticky Authentication & Session Isolation:** Built using browser-isolated `sessionStorage` sandboxes, explicitly allowing multi-profile side-by-side execution tabs for developers and users without account pollution or state collision on manual page reloads.
-- **⚡ Real-Time Bi-directional Communication:** Fueled by a custom Socket.io integration mapping live event listeners for immediate text and media delivery, as well as active contact connection lifecycle states (Online/Offline/Away).
-- **🎨 Visual Paradigm "Circles" Login Interface:** A custom layout design featuring premium glassmorphic properties, responsive canvas dimensions, and deep navy-blue dark mode components matching a high-fidelity design schema.
-- **🖼️ Real-Time Profile Avatar Propagation:** Upload custom image assets seamlessly routed through cloud object storage API pipelines, written directly to MongoDB User documents, and broadcasted globally across active channels instantly via low-latency websocket hooks.
-- **📜 Smart Hybrid Scroll Viewport Execution:** A precision layout monitoring engine that smoothly glides downwards to catch new incoming message fragments while applying zero-lag instant snap coordinates on heavy initial room history loading sequences.
+### 🔐 Authentication & Session Management
+
+* Secure user authentication.
+* Session isolation using `sessionStorage`, allowing multiple accounts to run simultaneously in different browser tabs.
+* Prevents state collisions during development and testing.
+
+### 💬 Real-Time Messaging
+
+* Instant text messaging powered by **Socket.io**.
+* Real-time online/offline user status updates.
+* Low-latency bidirectional communication.
+
+### 🖼️ Profile Avatar Management
+
+* Upload profile pictures through cloud storage.
+* Store image URLs in MongoDB.
+* Instantly propagate avatar changes across all active chat sessions.
+
+### 📜 Intelligent Auto-Scrolling
+
+* Automatically detects whether messages are newly received or loaded from history.
+* Smooth scrolling for live messages.
+* Instant scrolling for initial conversation loading to eliminate UI lag.
+
+### 🎨 Modern User Interface
+
+* Responsive React interface.
+* Glassmorphism-inspired login screen.
+* Dark theme with custom Tailwind CSS styling.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠 Tech Stack
 
-### Frontend Architecture
-- **Core Framework:** React.js (Vite configuration workflow)
-- **Styling Utility:** Tailwind CSS (Custom color extensions, nested interactive states)
-- **State Strategy:** React Hooks (`useState`, `useEffect`, `useRef`, `useCallback`, `useMemo`)
-- **HTTP Transport:** Axios (Asynchronous REST operations)
+### Frontend
 
-### Backend Infrastructure
-- **Runtime Environment:** Node.js & Express framework server engine
-- **WebSocket Gateway:** Socket.io Core Library
-- **Database Model:** MongoDB using the Mongoose Object Data Modeling (ODM) layer
-- **Media Optimization Pipeline:** Cloud object storage REST API integration
+* React.js (Vite)
+* Tailwind CSS
+* Axios
+* React Hooks (`useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`)
+
+### Backend
+
+* Node.js
+* Express.js
+* Socket.io
+* MongoDB
+* Mongoose
+* Cloud Storage API Integration
 
 ---
 
-## 🚀 Installation & Local Environment Configuration
+## 📂 Project Structure
+
+```
+Chatly/
+├── Frontend/
+├── Backend/
+├── README.md
+└── package.json
+```
+
+---
+
+## ⚙ Installation
 
 ### Prerequisites
-Ensure your workstation has **Node.js (v16+)** installed alongside a running instance of **MongoDB** (Local Community Edition daemon or an Atlas Cloud cluster connection string URL).
 
-### 1. Initializing the Server Core
-Navigate into your backend cluster workspace terminal directory:
+* Node.js v16+
+* MongoDB (Local or Atlas)
+
+---
+
+### 1️⃣ Backend Setup
+
 ```bash
 cd Backend
 npm install
+```
+
+Create a `.env` file inside the **Backend** directory.
+
+```env
+PORT=5000
+MONGO_URI=mongodb://127.0.0.1:27017/chatly
+```
+
+Start the backend server.
+
+```bash
+npm start
+```
+
+Expected output:
+
+```
+📦 Connected to MongoDB successfully!
+🚀 Server running on port 5000
+```
+
+---
+
+### 2️⃣ Frontend Setup
+
+```bash
+cd ../Frontend
+npm install
+npm run dev
+```
+
+Open
+
+```
+http://localhost:5173
+```
+
+To test real-time messaging:
+
+* Open another browser window or an Incognito window.
+* Register/login with another account.
+* Start chatting and observe instant synchronization.
+
+---
+
+# 💡 Technical Highlights
+
+## Multi-Tab Session Isolation
+
+Unlike applications that rely on `localStorage`, Chatly uses `sessionStorage` to isolate each browser tab. This enables developers to test multiple user sessions simultaneously on the same device without account conflicts.
+
+---
+
+## Intelligent Scroll Management
+
+```javascript
+useEffect(() => {
+    if (!viewState.isSwitching && viewState.currentMessages.length > 0) {
+        const currentCount = viewState.currentMessages.length;
+        const prevCount = prevMessageCountRef.current;
+
+        const isLiveNewMessage =
+            currentCount - prevCount > 0 &&
+            currentCount - prevCount <= 2;
+
+        const scrollTimeout = setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({
+                behavior: isLiveNewMessage ? "smooth" : "auto",
+            });
+        }, 30);
+
+        prevMessageCountRef.current = currentCount;
+
+        return () => clearTimeout(scrollTimeout);
+    }
+}, [viewState.currentMessages, viewState.isSwitching]);
+```
+
+This implementation distinguishes between:
+
+* Live incoming messages
+* Initial conversation history loading
+
+Small message updates trigger smooth scrolling, while large history loads instantly jump to the latest message, providing a smoother user experience for long conversations.
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**.
+
+Feel free to use, modify, and extend the project.
