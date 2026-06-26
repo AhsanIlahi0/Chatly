@@ -37,18 +37,7 @@ mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chatly')
         try {
             const User = require('./models/User'); // Double check this path to your User schema file
 
-            const usersToSeed = [
-                { name: "Alice Johnson", email: "alice@gmail.com", password: "password123" },
-                { name: "Bob Smith", email: "bob@gmail.com", password: "password123" }
-            ];
-
-            for (const userData of usersToSeed) {
-                const exists = await User.findOne({ email: userData.email });
-                if (!exists) {
-                    await User.create(userData);
-                    console.log(`🌱 Seeded test user: ${userData.email}`);
-                }
-            }
+           
         } catch (seedErr) {
             console.error("Auto-seeding skipped/failed:", seedErr.message);
         }

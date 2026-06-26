@@ -1,40 +1,37 @@
-// Frontend/src/hooks/useSocket.js
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:5000'; // Target URL pointing to your Node backend server
+const SOCKET_URL = 'http://localhost:5000';
 
-export const useSocket = (currentUserId, onMessageReceived, onStatusChanged) => {
+export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged) => {
     const socketRef = useRef(null);
 
     useEffect(() => {
         if (!currentUserId) return;
 
-        // Initialize connection
         socketRef.current = io(SOCKET_URL);
-
-        // Register the active user with the backend socket server
         socketRef.current.emit('registerUser', currentUserId);
 
-        // Event listener for incoming live messages
         socketRef.current.on('receiveMessage', (message) => {
             onMessageReceived(message);
         });
 
-        // Event listener to watch contacts flip between online/offline states
         socketRef.current.on('userStatusChanged', (statusPayload) => {
             if (onStatusChanged) onStatusChanged(statusPayload);
         });
 
-        // Clean up connection hooks when component layouts unmount or users switch accounts
+        // 🚀 listen for other users updating their avatars
+        socketRef.current.on('userAvatarChanged', (avatarPayload) => {
+            if (onAvatarChanged) onAvatarChanged(avatarPayload);
+        });
+
         return () => {
             if (socketRef.current) {
                 socketRef.current.disconnect();
             }
         };
-    }, [currentUserId, onMessageReceived, onStatusChanged]);
+    }, [currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged]);
 
-    // Expose a quick trigger to emit outgoing chat messages down down the websocket pipe
     const emitSendMessage = (receiverId, text, file) => {
         if (socketRef.current) {
             socketRef.current.emit('sendMessage', {
@@ -46,5 +43,15 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged) => 
         }
     };
 
-    return { emitSendMessage };
+    // 🚀 function to emit an avatar update event
+    const emitUpdateAvatar = (avatarUrl) => {
+        if (socketRef.current) {
+            socketRef.current.emit('updateAvatar', {
+                userId: currentUserId,
+                avatarUrl
+            });
+        }
+    };
+
+    return { emitSendMessage, emitUpdateAvatar };
 };

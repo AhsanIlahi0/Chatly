@@ -7,7 +7,7 @@ import Avatar from '../sidebar/avatar';
 // import { useDarkMode } from '../../hooks/useDarkMode';
 
 
-function ChatContainer({ theme, setTheme, activeUser, messages = [],onLogout, isDetailTabOpen, onSendMessage, onDeselectUser, showProfile, onCloseProfile, onOpenProfile, onToggleProfile }) {
+function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, isDetailTabOpen, onSendMessage, onDeselectUser, showProfile, onCloseProfile, onOpenProfile, onToggleProfile }) {
     // const [theme, toggleTheme] = useDarkMode();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
@@ -168,14 +168,14 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [],onLogout, is
                 </div>
 
                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
-                     <div className="  border-t border-white/10 bg-transparent text-sm font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-300 transition-colors">
-                <button
-                    onClick={onLogout}
-                    className="cursor-pointer p-3 w-full rounded-xl bg-rose-500/10 hover:bg-rose-500 py-2.5 text-sm font-semibold text-rose-400 hover:text-white border border-rose-500/20 transition-all"
-                >
-                    Sign Out 
-                </button>
-            </div>
+                    <div className="  border-t border-white/10 bg-transparent text-sm font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-300 transition-colors">
+                        <button
+                            onClick={onLogout}
+                            className="cursor-pointer p-3 w-full rounded-xl bg-rose-500/10 hover:bg-rose-500 py-2.5 text-sm font-semibold text-rose-400 hover:text-white border border-rose-500/20 transition-all"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
                     <button
                         type="button"
                         onClick={setTheme}
@@ -277,6 +277,14 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [],onLogout, is
                     <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Welcome to Chatly</h2>
                     <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Pick a user from the sidebar to start chatting.</p>
                 </div>
+                <div className=" fixed bottom-6 right-6 z-50  bg-transparent text-sm font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-300 transition-colors">
+                        <button
+                            onClick={onLogout}
+                            className="cursor-pointer p-3 w-full rounded-xl bg-rose-500/10 hover:bg-rose-500 py-2.5 text-sm font-semibold text-rose-400 hover:text-white border border-rose-500/20 transition-all"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
             </div>
 
             {viewState.previousUser && viewState.currentUser ? (

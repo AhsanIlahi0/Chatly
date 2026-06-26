@@ -70,6 +70,15 @@ const chatSocket = (io) => {
                 }
             }
         });
+        // Inside Backend/src/sockets/chatSocket.js
+        // Look for your module.exports = (io) => { io.on('connection', (socket) => { ... }) }
+
+        // 🚀 ADD THIS LISTENER INSIDE THE CONNECTION BLOCK:
+        socket.on('updateAvatar', (payload) => {
+            // payload = { userId: "...", avatarUrl: "..." }
+            // Broadcast it out to all other active tabs instantly
+            socket.broadcast.emit('userAvatarChanged', payload);
+        });
     });
 };
 

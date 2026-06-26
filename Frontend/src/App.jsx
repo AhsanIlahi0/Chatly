@@ -238,120 +238,77 @@ function App() {
 
     // 🚀 GATEKEEPER INTERFACE (Sign In / Sign Up Card)
     // 🚀 UPDATED GATEKEEPER INTERFACE (Matches the uploaded design layout)
-    if (!currentUser) {
+   if (!currentUser) {
         return (
-            <div className="flex h-screen w-screen items-center justify-center bg-slate-400 p-4 md:p-10 font-sans select-none">
-                {/* Main Dashboard Canvas Frame */}
-                <div className="relative flex h-full w-screen max-w-6xl items-center justify-between overflow-hidden rounded-[2.5rem] bg-[#071126] px-8 md:px-20 shadow-2xl">
-                    
-                    {/* Abstract Deep Blue/Purple Glow Circles Behind Everything */}
-                    <div className="absolute -left-20 -top-20 h-96 w-96 rounded-full bg-indigo-900/20 blur-3xl pointer-events-none" />
-                    <div className="absolute -bottom-10 left-1/3 h-[500px] w-[500px] rounded-full bg-sky-950/40 blur-3xl pointer-events-none" />
-                    
-                    {/* LEFT SIDE: Brand Branding Info */}
-                    <div className="relative z-10 hidden max-w-md flex-col md:flex">
-                        {/* Logo header */}
-                        <div className="flex items-center gap-2 text-white">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-full border-4 border-blue-500 p-1">
-                                <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-                            </div>
-                            <span className="text-xl font-bold tracking-wide">chatly</span>
+            <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white font-sans">
+                <form onSubmit={handleAuthSubmit} className="w-full max-w-sm rounded-2xl bg-slate-900 p-8 shadow-2xl ring-1 ring-white/10">
+                    <h2 className="mb-2 text-2xl font-bold tracking-tight text-center text-sky-400">
+                        {isSignup ? "Create an Account" : "Join Chatly"}
+                    </h2>
+                    <p className="mb-6 text-xs text-slate-400 text-center">
+                        {isSignup ? "Sign up to start messaging in real-time" : "Sign in to catch up on conversations"}
+                    </p>
+
+                    {isSignup && (
+                        <div className="mb-4">
+                            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Display Name</label>
+                            <input
+                                type="text"
+                                value={nameInput}
+                                onChange={(e) => setNameInput(e.target.value)}
+                                placeholder="Alice Smith"
+                                className="w-full rounded-xl bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
+                                required
+                            />
                         </div>
+                    )}
 
-                        {/* Heading titles */}
-                        <h1 className="mt-16 text-4xl font-bold tracking-tight text-white lg:text-5xl">
-                            {isSignup ? "Create your account" : "Login into your account"}
-                        </h1>
-                        <p className="mt-4 text-base text-slate-400/80 font-medium">
-                            {isSignup ? "Let's make the room bigger!" : "Let's make the circle bigger!"}
-                        </p>
+                    <div className="mb-4">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Email Address</label>
+                        <input
+                            type="email"
+                            value={emailInput}
+                            onChange={(e) => setEmailInput(e.target.value)}
+                            placeholder="you@example.com"
+                            className="w-full rounded-xl bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
+                            required
+                        />
                     </div>
 
-                    {/* RIGHT SIDE: Floating White Input Card Form Frame */}
-                    <div className="relative z-10 w-full max-w-md rounded-3xl bg-white p-8 md:p-10 shadow-2xl shadow-black/40">
-                        <form onSubmit={handleAuthSubmit} className="flex flex-col">
-                            
-                            {/* Mobile-only logo display when left side collapses */}
-                            <div className="mb-6 flex items-center gap-2 text-slate-900 md:hidden">
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full border-4 border-blue-600 p-0.5">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                                </div>
-                                <span className="text-lg font-bold">chatly</span>
-                            </div>
-
-                            {/* Conditional Display Name Field for Signup */}
-                            {isSignup && (
-                                <div className="mb-5">
-                                    <label className="block text-xs font-medium text-slate-500 mb-1.5">Display Name</label>
-                                    <input
-                                        type="text"
-                                        value={nameInput}
-                                        onChange={(e) => setNameInput(e.target.value)}
-                                        placeholder="Your username"
-                                        className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm text-slate-800 placeholder-slate-300 transition-colors focus:border-blue-500 focus:outline-none bg-slate-50/50"
-                                        required
-                                    />
-                                </div>
-                            )}
-
-                            {/* Email Field Container */}
-                            <div className="mb-5">
-                                <label className="block text-xs font-medium text-slate-500 mb-1.5">Email</label>
-                                <input
-                                    type="email"
-                                    value={emailInput}
-                                    onChange={(e) => setEmailInput(e.target.value)}
-                                    placeholder="name@example.com"
-                                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm text-slate-800 placeholder-slate-300 transition-colors focus:border-blue-500 focus:outline-none bg-slate-50/50"
-                                    required
-                                />
-                            </div>
-
-                            {/* Password Field Container */}
-                            <div className="mb-6">
-                                <label className="block text-xs font-medium text-slate-500 mb-1.5">Password</label>
-                                <input
-                                    type="password"
-                                    value={passwordInput}
-                                    onChange={(e) => setPasswordInput(e.target.value)}
-                                    placeholder="Your password"
-                                    className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm text-slate-800 placeholder-slate-300 transition-colors focus:border-blue-500 focus:outline-none bg-slate-50/50"
-                                    required
-                                />
-                            </div>
-
-                            {/* Bottom Flex Bar: Switch Action Toggle & Core Action Trigger */}
-                            <div className="flex items-center justify-between gap-4 pt-2">
-                                <p className="text-xs text-slate-500 font-medium">
-                                    {isSignup ? "Have an account?" : "Don't have an account?"}{" "}
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setIsSignup(!isSignup);
-                                            setNameInput("");
-                                        }}
-                                        className="text-blue-600 font-semibold hover:underline bg-transparent border-none cursor-pointer p-0 ml-0.5"
-                                    >
-                                        {isSignup ? "Login" : "Sign up"}
-                                    </button>
-                                </p>
-
-                                <button
-                                    type="submit"
-                                    disabled={authLoading}
-                                    className="rounded-lg bg-blue-600 px-8 py-2.5 text-sm font-semibold text-white transition-all hover:bg-blue-500 active:scale-95 disabled:bg-slate-300 disabled:pointer-events-none shadow-md shadow-blue-600/10"
-                                >
-                                    {authLoading ? "..." : isSignup ? "Register" : "Login"}
-                                </button>
-                            </div>
-                        </form>
+                    <div className="mb-6">
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Password</label>
+                        <input
+                            type="password"
+                            value={passwordInput}
+                            onChange={(e) => setPasswordInput(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full rounded-xl bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
+                            required
+                        />
                     </div>
 
-                    {/* Bottom Copyright watermark layout matching layout file footer */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-[10px] tracking-wide text-slate-600 font-medium pointer-events-none w-full">
-                        © 2026 Chatly - All Rights Reserved
-                    </div>
-                </div>
+                    <button
+                        type="submit"
+                        disabled={authLoading}
+                        className="w-full rounded-xl bg-sky-500 py-3 text-sm font-bold text-slate-950 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 transition-colors shadow-lg shadow-sky-500/20 mb-4"
+                    >
+                        {authLoading ? "Processing..." : isSignup ? "Create Free Account" : "Enter Chatroom"}
+                    </button>
+
+                    <p className="text-center text-xs text-slate-400">
+                        {isSignup ? "Already have an account?" : "New to Chatly?"}{" "}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsSignup(!isSignup);
+                                setNameInput("");
+                            }}
+                            className="text-sky-400 hover:underline font-semibold focus:outline-none ml-1"
+                        >
+                            {isSignup ? "Sign In" : "Sign Up Here"}
+                        </button>
+                    </p>
+                </form>
             </div>
         );
     }
@@ -363,14 +320,14 @@ function App() {
                 users={users}
                 activeUserId={activeUserId}
                 onSelectUser={handleSelectUser}
-                onLogout={handleLogout} // Passed logout action down
             />
             <ActiveChat
+                            onLogout={handleLogout} // Passed logout action down
+
                 theme={theme}
                 setTheme={toggleTheme}
                 activeUser={activeUser}
                 messages={activeMessages}
-                onLogout={handleLogout} // Passed logout action down
                 onSendMessage={handleSendMessage}
                 isDetailTabOpen={isDetailTabOpen}
                 onCloseProfile={() => setIsDetailTabOpen(false)}
