@@ -25,8 +25,12 @@ function App() {
         }
     }); 
 
-    const [users, setUsers] = useState([]); 
-    
+    const [users, setUsers] = useState([]); // 👈 now holds only ACCEPTED friends (the chat list)
+
+    // 🤝 FRIEND REQUEST STATE
+    const [incomingRequests, setIncomingRequests] = useState([]); // requests waiting on MY response
+    const [outgoingRequests, setOutgoingRequests] = useState([]); // requests I sent, still pending
+
     // AUTHENTICATION FORM STATES
     const [isSignup, setIsSignup] = useState(false); 
     const [nameInput, setNameInput] = useState("");   
@@ -69,35 +73,143 @@ function App() {
         });
     }, [currentUserId]);
 
+    // 📨 Someone just sent ME a friend request — drop it straight into the panel
+    const handleFriendRequestReceived = useCallback((payload) => {
+        setIncomingRequests(prev => {
+            if (prev.some(r => r._id === payload.requestId)) return prev;
+            return [{ _id: payload.requestId, sender: payload.from, createdAt: new Date().toISOString() }, ...prev];
+        });
+    }, []);
+
+    // ✅ Someone accepted a request I sent — they're a friend now, show up in the sidebar
+    const handleFriendRequestAccepted = useCallback((payload) => {
+        setOutgoingRequests(prev => prev.filter(r => r._id !== payload.request?._id));
+        setUsers(prev => {
+            const friend = payload.friend;
+            if (!friend || prev.some(u => u.id === friend._id)) return prev;
+            return [...prev, {
+                id: friend._id,
+                name: friend.name,
+                avatar: friend.name ? friend.name.substring(0, 2).toUpperCase() : "??",
+                status: friend.status || "offline",
+                unread: 0
+            }];
+        });
+    }, []);
+
+    // ❌ Someone declined a request I sent — remove it from my "sent" list
+    const handleFriendRequestDeclined = useCallback((payload) => {
+        setOutgoingRequests(prev => prev.filter(r => r._id !== payload.requestId));
+    }, []);
+
+    // 🚫 Someone cancelled a request they'd sent to me — remove it from my incoming list
+    const handleFriendRequestCancelled = useCallback((payload) => {
+        setIncomingRequests(prev => prev.filter(r => r._id !== payload.requestId));
+    }, []);
+
     // Instantiate socket hook passing current logged-in user ID safely
     // 💡 Note: Ensure your useSocket hook gracefully handles a null/undefined ID!
-    const { emitSendMessage } = useSocket(currentUserId, handleIncomingLiveMessage);
+    const { emitSendMessage } = useSocket(
+        currentUserId,
+        handleIncomingLiveMessage,
+        undefined,
+        undefined,
+        handleFriendRequestReceived,
+        handleFriendRequestAccepted,
+        handleFriendRequestDeclined,
+        handleFriendRequestCancelled
+    );
 
-    // FETCH DYNAMIC DIRECTORY ONCE LOGGED IN
-    useEffect(() => {
+    // FETCH MY ACCEPTED FRIENDS — this is what populates the sidebar chat list
+    const fetchFriends = useCallback(async () => {
         if (!currentUserId) return;
-
-        const fetchUsers = async () => {
-            try {
-                const res = await axios.get("http://localhost:5000/api/auth/all-users");
-
-                const dynamicList = res.data
-                    .filter(u => u._id !== currentUserId)
-                    .map(u => ({
-                        id: u._id,
-                        name: u.name, 
-                        avatar: u.name ? u.name.substring(0, 2).toUpperCase() : "??",
-                        status: u.status || "offline",
-                        unread: 0
-                    }));
-                setUsers(dynamicList);
-            } catch (err) {
-                console.error("Error pulling live user list directory:", err);
-            }
-        };
-
-        fetchUsers();
+        try {
+            const res = await axios.get(`http://localhost:5000/api/friends/${currentUserId}`);
+            const dynamicList = res.data.map(u => ({
+                id: u._id,
+                name: u.name,
+                avatar: u.name ? u.name.substring(0, 2).toUpperCase() : "??",
+                status: u.status || "offline",
+                unread: 0
+            }));
+            setUsers(dynamicList);
+        } catch (err) {
+            console.error("Error pulling friends list:", err);
+        }
     }, [currentUserId]);
+
+    // FETCH MY PENDING FRIEND REQUESTS (both directions)
+    const fetchFriendRequests = useCallback(async () => {
+        if (!currentUserId) return;
+        try {
+            const [incomingRes, outgoingRes] = await Promise.all([
+                axios.get(`http://localhost:5000/api/friends/${currentUserId}/incoming`),
+                axios.get(`http://localhost:5000/api/friends/${currentUserId}/outgoing`)
+            ]);
+            setIncomingRequests(incomingRes.data);
+            setOutgoingRequests(outgoingRes.data);
+        } catch (err) {
+            console.error("Error pulling friend requests:", err);
+        }
+    }, [currentUserId]);
+
+    useEffect(() => {
+        (async () => {
+            await fetchFriends();
+            await fetchFriendRequests();
+        })();
+    }, [fetchFriends, fetchFriendRequests]);
+
+    // 📨 Send a friend request to someone found via the "Find People" modal
+    const handleSendFriendRequest = async (receiverId) => {
+        try {
+            const res = await axios.post(`http://localhost:5000/api/friends/request`, {
+                senderId: currentUserId,
+                receiverId
+            });
+            if (res.data.status === 'accepted') {
+                // They'd already sent ME a request — we're instantly friends now
+                fetchFriends();
+                fetchFriendRequests();
+            } else {
+                fetchFriendRequests();
+            }
+            return { success: true, message: res.data.message };
+        } catch (err) {
+            return { success: false, message: err.response?.data?.error || "Couldn't send that request" };
+        }
+    };
+
+    // ✅ Accept an incoming friend request
+    const handleAcceptFriendRequest = async (requestId) => {
+        try {
+            await axios.post(`http://localhost:5000/api/friends/accept`, { requestId, userId: currentUserId });
+            setIncomingRequests(prev => prev.filter(r => r._id !== requestId));
+            fetchFriends();
+        } catch (err) {
+            console.error("Failed to accept request:", err);
+        }
+    };
+
+    // ❌ Decline an incoming friend request
+    const handleDeclineFriendRequest = async (requestId) => {
+        try {
+            await axios.post(`http://localhost:5000/api/friends/decline`, { requestId, userId: currentUserId });
+            setIncomingRequests(prev => prev.filter(r => r._id !== requestId));
+        } catch (err) {
+            console.error("Failed to decline request:", err);
+        }
+    };
+
+    // 🚫 Cancel a friend request I sent before it was answered
+    const handleCancelFriendRequest = async (requestId) => {
+        try {
+            await axios.post(`http://localhost:5000/api/friends/cancel`, { requestId, userId: currentUserId });
+            setOutgoingRequests(prev => prev.filter(r => r._id !== requestId));
+        } catch (err) {
+            console.error("Failed to cancel request:", err);
+        }
+    };
 
     const activeMessages = activeUserId ? conversations[activeUserId] ?? [] : [];
 
@@ -234,6 +346,9 @@ function App() {
         localStorage.removeItem("chatly_user");
         setCurrentUser(null);
         setActiveUserId(null);
+        setUsers([]);
+        setIncomingRequests([]);
+        setOutgoingRequests([]);
     };
 
     // 🚀 GATEKEEPER INTERFACE (Sign In / Sign Up Card)
@@ -320,6 +435,13 @@ function App() {
                 users={users}
                 activeUserId={activeUserId}
                 onSelectUser={handleSelectUser}
+                currentUser={currentUser}
+                incomingRequests={incomingRequests}
+                outgoingRequests={outgoingRequests}
+                onSendRequest={handleSendFriendRequest}
+                onAcceptRequest={handleAcceptFriendRequest}
+                onDeclineRequest={handleDeclineFriendRequest}
+                onCancelRequest={handleCancelFriendRequest}
             />
             <ActiveChat
                             onLogout={handleLogout} // Passed logout action down

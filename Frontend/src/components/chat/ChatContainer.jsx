@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import info_icon_light from '../../images/info.png';
-import info_icon_dark from '../../images/info_white.png';
+import info_icon_dark from '../../images/info_White.png';
 import Avatar from '../sidebar/avatar';
 // import { useDarkMode } from '../../hooks/useDarkMode';
 

@@ -1,22 +1,25 @@
+import { useState } from "react";
+
 const Avatar = ({ user }) => {
-    // Simple check: If it looks like a URL or an image file path, render the image
-    const hasImageAvatar = user.avatar && (user.avatar.startsWith('http') || user.avatar.includes('.'));
+    const [imgFailed, setImgFailed] = useState(false);
+
+    // "default_avatar.png" is the schema's placeholder value, not a real
+    // uploaded image — treat it (and any failed image load) as "no avatar".
+    const isPlaceholder = !user?.avatar || user.avatar === 'default_avatar.png';
+    const hasImageAvatar = !isPlaceholder && !imgFailed && (user.avatar.startsWith('http') || user.avatar.includes('.'));
 
     return (
         <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white font-bold uppercase overflow-hidden shrink-0">
             {hasImageAvatar ? (
-                <img 
-                    src={user.avatar} 
-                    alt={user.name} 
+                <img
+                    src={user.avatar}
+                    alt={user.name}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                        // Fallback in case a real image URL fails to load
-                        e.target.style.display = 'none';
-                    }}
+                    onError={() => setImgFailed(true)}
                 />
             ) : (
-                // Fallback UI: Displays the initials (e.g., "AJ", "BS") safely without any broken image icons!
-                <span>{user.avatar || user.name.charAt(0)}</span>
+                // Fallback UI: Displays the initials safely without any broken image icons!
+                <span>{user?.name ? user.name.charAt(0) : "?"}</span>
             )}
         </div>
     );

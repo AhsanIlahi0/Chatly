@@ -7,6 +7,7 @@ const chatSocket = require('./sockets/chatSocket');
 const messageRoutes = require('./routes/messageRoutes');
 const cors = require('cors');
 const authRoutes = require('./routes/auth');
+const friendRoutes = require('./routes/friendRoutes');
 
 require('dotenv').config();
 
@@ -29,18 +30,14 @@ app.use('/api/auth', authRoutes);
 
 // Pass the configured io instance to our modular socket layout script
 chatSocket(io);
+
+// Friend requests need to push real-time events too, so they get the
+// same `io` instance plus the shared online-users presence map.
+app.use('/api/friends', friendRoutes(io, chatSocket.onlineUsers));
+
 mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chatly')
-    .then(async () => {
+    .then(() => {
         console.log('📦 Connected to MongoDB successfully!');
-
-        // 🚀 AUTO-SEED TEST USERS FOR POWERSHELL WORKAROUND
-        try {
-            const User = require('./models/User'); // Double check this path to your User schema file
-
-           
-        } catch (seedErr) {
-            console.error("Auto-seeding skipped/failed:", seedErr.message);
-        }
     })
     .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
