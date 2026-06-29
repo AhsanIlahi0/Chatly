@@ -25,12 +25,8 @@ function App() {
         }
     }); 
 
-    const [users, setUsers] = useState([]); // 👈 now holds only ACCEPTED friends (the chat list)
-
-    // 🤝 FRIEND REQUEST STATE
-    const [incomingRequests, setIncomingRequests] = useState([]); // requests waiting on MY response
-    const [outgoingRequests, setOutgoingRequests] = useState([]); // requests I sent, still pending
-
+    const [users, setUsers] = useState([]); 
+    
     // AUTHENTICATION FORM STATES
     const [isSignup, setIsSignup] = useState(false); 
     const [nameInput, setNameInput] = useState("");   
@@ -73,143 +69,35 @@ function App() {
         });
     }, [currentUserId]);
 
-    // 📨 Someone just sent ME a friend request — drop it straight into the panel
-    const handleFriendRequestReceived = useCallback((payload) => {
-        setIncomingRequests(prev => {
-            if (prev.some(r => r._id === payload.requestId)) return prev;
-            return [{ _id: payload.requestId, sender: payload.from, createdAt: new Date().toISOString() }, ...prev];
-        });
-    }, []);
-
-    // ✅ Someone accepted a request I sent — they're a friend now, show up in the sidebar
-    const handleFriendRequestAccepted = useCallback((payload) => {
-        setOutgoingRequests(prev => prev.filter(r => r._id !== payload.request?._id));
-        setUsers(prev => {
-            const friend = payload.friend;
-            if (!friend || prev.some(u => u.id === friend._id)) return prev;
-            return [...prev, {
-                id: friend._id,
-                name: friend.name,
-                avatar: friend.name ? friend.name.substring(0, 2).toUpperCase() : "??",
-                status: friend.status || "offline",
-                unread: 0
-            }];
-        });
-    }, []);
-
-    // ❌ Someone declined a request I sent — remove it from my "sent" list
-    const handleFriendRequestDeclined = useCallback((payload) => {
-        setOutgoingRequests(prev => prev.filter(r => r._id !== payload.requestId));
-    }, []);
-
-    // 🚫 Someone cancelled a request they'd sent to me — remove it from my incoming list
-    const handleFriendRequestCancelled = useCallback((payload) => {
-        setIncomingRequests(prev => prev.filter(r => r._id !== payload.requestId));
-    }, []);
-
     // Instantiate socket hook passing current logged-in user ID safely
     // 💡 Note: Ensure your useSocket hook gracefully handles a null/undefined ID!
-    const { emitSendMessage } = useSocket(
-        currentUserId,
-        handleIncomingLiveMessage,
-        undefined,
-        undefined,
-        handleFriendRequestReceived,
-        handleFriendRequestAccepted,
-        handleFriendRequestDeclined,
-        handleFriendRequestCancelled
-    );
+    const { emitSendMessage } = useSocket(currentUserId, handleIncomingLiveMessage);
 
-    // FETCH MY ACCEPTED FRIENDS — this is what populates the sidebar chat list
-    const fetchFriends = useCallback(async () => {
-        if (!currentUserId) return;
-        try {
-            const res = await axios.get(`http://localhost:5000/api/friends/${currentUserId}`);
-            const dynamicList = res.data.map(u => ({
-                id: u._id,
-                name: u.name,
-                avatar: u.name ? u.name.substring(0, 2).toUpperCase() : "??",
-                status: u.status || "offline",
-                unread: 0
-            }));
-            setUsers(dynamicList);
-        } catch (err) {
-            console.error("Error pulling friends list:", err);
-        }
-    }, [currentUserId]);
-
-    // FETCH MY PENDING FRIEND REQUESTS (both directions)
-    const fetchFriendRequests = useCallback(async () => {
-        if (!currentUserId) return;
-        try {
-            const [incomingRes, outgoingRes] = await Promise.all([
-                axios.get(`http://localhost:5000/api/friends/${currentUserId}/incoming`),
-                axios.get(`http://localhost:5000/api/friends/${currentUserId}/outgoing`)
-            ]);
-            setIncomingRequests(incomingRes.data);
-            setOutgoingRequests(outgoingRes.data);
-        } catch (err) {
-            console.error("Error pulling friend requests:", err);
-        }
-    }, [currentUserId]);
-
+    // FETCH DYNAMIC DIRECTORY ONCE LOGGED IN
     useEffect(() => {
-        (async () => {
-            await fetchFriends();
-            await fetchFriendRequests();
-        })();
-    }, [fetchFriends, fetchFriendRequests]);
+        if (!currentUserId) return;
 
-    // 📨 Send a friend request to someone found via the "Find People" modal
-    const handleSendFriendRequest = async (receiverId) => {
-        try {
-            const res = await axios.post(`http://localhost:5000/api/friends/request`, {
-                senderId: currentUserId,
-                receiverId
-            });
-            if (res.data.status === 'accepted') {
-                // They'd already sent ME a request — we're instantly friends now
-                fetchFriends();
-                fetchFriendRequests();
-            } else {
-                fetchFriendRequests();
+        const fetchUsers = async () => {
+            try {
+                const res = await axios.get("http://localhost:5000/api/auth/all-users");
+
+                const dynamicList = res.data
+                    .filter(u => u._id !== currentUserId)
+                    .map(u => ({
+                        id: u._id,
+                        name: u.name, 
+                        avatar: u.name ? u.name.substring(0, 2).toUpperCase() : "??",
+                        status: u.status || "offline",
+                        unread: 0
+                    }));
+                setUsers(dynamicList);
+            } catch (err) {
+                console.error("Error pulling live user list directory:", err);
             }
-            return { success: true, message: res.data.message };
-        } catch (err) {
-            return { success: false, message: err.response?.data?.error || "Couldn't send that request" };
-        }
-    };
+        };
 
-    // ✅ Accept an incoming friend request
-    const handleAcceptFriendRequest = async (requestId) => {
-        try {
-            await axios.post(`http://localhost:5000/api/friends/accept`, { requestId, userId: currentUserId });
-            setIncomingRequests(prev => prev.filter(r => r._id !== requestId));
-            fetchFriends();
-        } catch (err) {
-            console.error("Failed to accept request:", err);
-        }
-    };
-
-    // ❌ Decline an incoming friend request
-    const handleDeclineFriendRequest = async (requestId) => {
-        try {
-            await axios.post(`http://localhost:5000/api/friends/decline`, { requestId, userId: currentUserId });
-            setIncomingRequests(prev => prev.filter(r => r._id !== requestId));
-        } catch (err) {
-            console.error("Failed to decline request:", err);
-        }
-    };
-
-    // 🚫 Cancel a friend request I sent before it was answered
-    const handleCancelFriendRequest = async (requestId) => {
-        try {
-            await axios.post(`http://localhost:5000/api/friends/cancel`, { requestId, userId: currentUserId });
-            setOutgoingRequests(prev => prev.filter(r => r._id !== requestId));
-        } catch (err) {
-            console.error("Failed to cancel request:", err);
-        }
-    };
+        fetchUsers();
+    }, [currentUserId]);
 
     const activeMessages = activeUserId ? conversations[activeUserId] ?? [] : [];
 
@@ -346,58 +234,83 @@ function App() {
         localStorage.removeItem("chatly_user");
         setCurrentUser(null);
         setActiveUserId(null);
-        setUsers([]);
-        setIncomingRequests([]);
-        setOutgoingRequests([]);
     };
 
     // 🚀 GATEKEEPER INTERFACE (Sign In / Sign Up Card)
-    // 🚀 UPDATED GATEKEEPER INTERFACE (Matches the uploaded design layout)
    if (!currentUser) {
         return (
-            <div className="flex h-screen w-screen items-center justify-center bg-slate-950 text-white font-sans">
-                <form onSubmit={handleAuthSubmit} className="w-full max-w-sm rounded-2xl bg-slate-900 p-8 shadow-2xl ring-1 ring-white/10">
-                    <h2 className="mb-2 text-2xl font-bold tracking-tight text-center text-sky-400">
-                        {isSignup ? "Create an Account" : "Join Chatly"}
-                    </h2>
-                    <p className="mb-6 text-xs text-slate-400 text-center">
-                        {isSignup ? "Sign up to start messaging in real-time" : "Sign in to catch up on conversations"}
-                    </p>
+            <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-ink font-sans text-bone">
+                {/* Ambient signal glow — the same "live" motif as the rest of the app */}
+                <div className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-ember/20 blur-[120px]" />
+                <div className="pointer-events-none absolute bottom-[-12rem] right-[-8rem] h-[28rem] w-[28rem] rounded-full bg-teal/10 blur-[120px]" />
+
+                <form onSubmit={handleAuthSubmit} className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-ink-soft/80 p-8 shadow-2xl backdrop-blur-sm animate-rise-in">
+                    <div className="mb-6 flex flex-col items-center text-center">
+                        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-ember text-ink">
+                            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+                                <path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4.4 3.6a.6.6 0 0 1-1-.46V5a1 1 0 0 1 1-1Z" />
+                            </svg>
+                        </span>
+                        <h2 className="font-display text-2xl font-bold tracking-tight text-bone">
+                            {isSignup ? "Create an Account" : "Welcome back"}
+                        </h2>
+                        <p className="mt-1.5 text-xs text-dusk">
+                            {isSignup ? "Sign up to start messaging in real-time" : "Sign in to catch up on conversations"}
+                        </p>
+                    </div>
+
+                    {/* Sign in / Sign up segmented switch */}
+                    <div className="mb-6 flex rounded-xl bg-white/5 p-1">
+                        <button
+                            type="button"
+                            onClick={() => { setIsSignup(false); setNameInput(""); }}
+                            className={`flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-wide transition-all ${!isSignup ? 'bg-ember text-ink shadow-sm' : 'text-dusk hover:text-bone'}`}
+                        >
+                            Sign In
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setIsSignup(true); setNameInput(""); }}
+                            className={`flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-wide transition-all ${isSignup ? 'bg-ember text-ink shadow-sm' : 'text-dusk hover:text-bone'}`}
+                        >
+                            Sign Up
+                        </button>
+                    </div>
 
                     {isSignup && (
                         <div className="mb-4">
-                            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Display Name</label>
+                            <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Display Name</label>
                             <input
                                 type="text"
                                 value={nameInput}
                                 onChange={(e) => setNameInput(e.target.value)}
                                 placeholder="Alice Smith"
-                                className="w-full rounded-xl bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
+                                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
                                 required
                             />
                         </div>
                     )}
 
                     <div className="mb-4">
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Email Address</label>
+                        <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Email Address</label>
                         <input
                             type="email"
                             value={emailInput}
                             onChange={(e) => setEmailInput(e.target.value)}
                             placeholder="you@example.com"
-                            className="w-full rounded-xl bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
                             required
                         />
                     </div>
 
                     <div className="mb-6">
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Password</label>
+                        <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Password</label>
                         <input
                             type="password"
                             value={passwordInput}
                             onChange={(e) => setPasswordInput(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full rounded-xl bg-slate-800 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-shadow"
+                            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
                             required
                         />
                     </div>
@@ -405,24 +318,10 @@ function App() {
                     <button
                         type="submit"
                         disabled={authLoading}
-                        className="w-full rounded-xl bg-sky-500 py-3 text-sm font-bold text-slate-950 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-400 transition-colors shadow-lg shadow-sky-500/20 mb-4"
+                        className="w-full rounded-xl bg-ember py-3 text-sm font-bold text-ink transition-colors hover:bg-ember-soft disabled:bg-white/10 disabled:text-dusk shadow-lg shadow-ember/20"
                     >
                         {authLoading ? "Processing..." : isSignup ? "Create Free Account" : "Enter Chatroom"}
                     </button>
-
-                    <p className="text-center text-xs text-slate-400">
-                        {isSignup ? "Already have an account?" : "New to Chatly?"}{" "}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsSignup(!isSignup);
-                                setNameInput("");
-                            }}
-                            className="text-sky-400 hover:underline font-semibold focus:outline-none ml-1"
-                        >
-                            {isSignup ? "Sign In" : "Sign Up Here"}
-                        </button>
-                    </p>
                 </form>
             </div>
         );
@@ -430,18 +329,11 @@ function App() {
 
     // Main App View Dashboard (Triggers once logged in)
     return (
-        <div className="flex w-full h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+        <div className="flex w-full h-screen bg-parchment text-ink dark:bg-ink dark:text-bone">
             <Sidebar
                 users={users}
                 activeUserId={activeUserId}
                 onSelectUser={handleSelectUser}
-                currentUser={currentUser}
-                incomingRequests={incomingRequests}
-                outgoingRequests={outgoingRequests}
-                onSendRequest={handleSendFriendRequest}
-                onAcceptRequest={handleAcceptFriendRequest}
-                onDeclineRequest={handleDeclineFriendRequest}
-                onCancelRequest={handleCancelFriendRequest}
             />
             <ActiveChat
                             onLogout={handleLogout} // Passed logout action down

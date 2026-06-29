@@ -1,6 +1,30 @@
 @import 'tailwindcss';
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ──────────────────────────────────────────────────────────────
+   CHATLY DESIGN TOKENS
+   A warm-ink + ember/teal "live signal" identity — deliberately
+   not the generic slate+blue SaaS palette. Generates utilities
+   like bg-ink, text-ember, font-display, etc.
+   ────────────────────────────────────────────────────────────── */
+@theme {
+  --font-display: "Sora", "Inter", sans-serif;
+  --font-sans: "Inter", "Sora", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-ink: #14151c;          /* primary dark canvas (warm near-black, violet undertone) */
+  --color-ink-soft: #1c1e29;     /* dark surface one step up */
+  --color-ink-line: #2a2c3a;     /* dark hairlines / borders */
+
+  --color-parchment: #faf7f1;    /* primary light canvas (warm paper, not cold white) */
+  --color-bone: #efe8da;         /* light surface accents / borders */
+
+  --color-ember: #ff6b47;        /* primary accent — CTAs, sent bubbles, brand pulse */
+  --color-ember-soft: #ff8a68;
+  --color-teal: #2dd4bf;         /* secondary accent — presence, links, highlights */
+  --color-dusk: #6b6280;         /* muted violet-grey for secondary text on dark */
+}
+
 html, body, #root {
     width: 100%;
     height: 100%;
@@ -11,82 +35,85 @@ html.dark {
 }
 
 body {
-    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
-}
-/* Base setup for the sweeping mask layer */
-.theme-sweep-container {
-  position: relative;
-  overflow: hidden;
+    @apply bg-parchment text-ink font-sans antialiased dark:bg-ink dark:text-bone;
 }
 
-/* The true background color layer engine */
-.theme-sweep-container::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 0;
-  pointer-events: none;
-  background-color: #090d16; /* Dark mode master color canvas */
-  
-  /* Hidden circular point off-screen */
-  clip-path: circle(0% at 0% 0%);
-  transition: clip-path 950ms cubic-bezier(0.4, 0, 0.2, 1);
+/* Visible keyboard focus everywhere, kept subtle until needed */
+:focus-visible {
+    outline: 2px solid var(--color-ember);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
-/* Expand across the entire application interface layout dynamically */
-.theme-sweep-container.dark::before {
-  clip-path: circle(142% at 0% 0%);
+::selection {
+    background-color: color-mix(in srgb, var(--color-ember) 35%, transparent);
 }
 
-/* Keeps text fields, inputs and panels interacting cleanly */
-.theme-sweep-container > * {
-  position: relative;
-  z-index: 1;
-}@keyframes sweepToDark {
-  0% {
-    clip-path: circle(0% at 0% 0%);
-  }
-  100% {
-    clip-path: circle(150% at 0% 0%);
-  }
+/* Slim, on-brand scrollbars (progressive enhancement, ignored where unsupported) */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-line) transparent;
+}
+.dark * {
+    scrollbar-color: #3a3d4f transparent;
 }
 
-@keyframes sweepToLight {
-  0% {
-    clip-path: circle(0% at 0% 0%);
-  }
-  100% {
-    clip-path: circle(150% at 0% 0%);
-  }
+/* ──────────────────────────────────────────────────────────────
+   LIVE-SIGNAL PULSE
+   The one signature motif, used on presence dots & the brand mark.
+   ────────────────────────────────────────────────────────────── */
+@keyframes signal-pulse {
+    0%   { transform: scale(0.9); opacity: 0.65; }
+    70%  { transform: scale(1.9); opacity: 0; }
+    100% { transform: scale(1.9); opacity: 0; }
+}
+.animate-signal-pulse {
+    animation: signal-pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.animate-sweep-dark {
-  animation: sweepToDark 800ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+@keyframes rise-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.animate-rise-in {
+    animation: rise-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.animate-sweep-light {
-  animation: sweepToLight 800ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}/* Container that holds the clipped clone layer */
-.sweep-reveal-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none; /* Allows clicks to go through to the real app underneath */
-  z-index: 50;
-  
-  /* Start completely hidden in the top-left corner */
-  clip-path: circle(0% at 0% 0%);
-  transition: clip-path 900ms cubic-bezier(0.4, 0, 0.2, 1);
+/* ──────────────────────────────────────────────────────────────
+   RADIAL THEME SWAP
+   Toggling light/dark wipes from the toggle's click point using
+   the View Transitions API, with an automatic, silent fallback
+   (instant swap) on browsers that don't support it yet.
+   ────────────────────────────────────────────────────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
 }
 
-/* When active, the circle scales outward to reveal the new theme state */
-.sweep-reveal-layer.active {
-  clip-path: circle(150% at 0% 0%);
+::view-transition-old(root) {
+    z-index: 1;
 }
 
-/* Ensure all interactive layout items inside the clone render accurately */
-.sweep-reveal-layer > * {
-  pointer-events: none;
+::view-transition-new(root) {
+    z-index: 2;
+    clip-path: circle(0px at var(--theme-toggle-x, 50%) var(--theme-toggle-y, 50%));
+    animation: theme-reveal 620ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes theme-reveal {
+    to {
+        clip-path: circle(150% at var(--theme-toggle-x, 50%) var(--theme-toggle-y, 50%));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none !important;
+    }
+    .animate-signal-pulse,
+    .animate-rise-in {
+        animation: none !important;
+    }
 }

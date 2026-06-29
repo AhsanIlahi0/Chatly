@@ -1,14 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
-import info_icon_light from '../../images/info.png';
-import info_icon_dark from '../../images/info_White.png';
 import Avatar from '../sidebar/avatar';
-// import { useDarkMode } from '../../hooks/useDarkMode';
-
 
 function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, isDetailTabOpen, onSendMessage, onDeselectUser, showProfile, onCloseProfile, onOpenProfile, onToggleProfile }) {
-    // const [theme, toggleTheme] = useDarkMode();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
     const messagesEndRef = useRef(null);
@@ -125,8 +120,8 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
     // 🚀 Unified Scroll Anchor Controller
-    // Keep track of the last message count to see if a single new message was added
     const prevMessageCountRef = useRef(messages.length);
 
     useEffect(() => {
@@ -134,9 +129,6 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
             const currentCount = viewState.currentMessages.length;
             const prevCount = prevMessageCountRef.current;
 
-            // 🚀 Determine scroll speed context
-            // If the count only went up by 1 or 2, it's a live message -> scroll smoothly.
-            // If it's a massive jump or initial render -> snap instantly.
             const isLiveNewMessage = currentCount - prevCount > 0 && currentCount - prevCount <= 2;
 
             const scrollTimeout = setTimeout(() => {
@@ -145,7 +137,6 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                 });
             }, 30);
 
-            // Update the ref tracker for the next cycle
             prevMessageCountRef.current = currentCount;
 
             return () => clearTimeout(scrollTimeout);
@@ -153,93 +144,74 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
     }, [viewState.currentMessages, viewState.isSwitching]);
 
     const renderChatPanel = (user, panelMessages, panelStateClassName, attachScrollTarget = true) => (
-        <div className={`absolute inset-0 flex h-full min-h-0 flex-col bg-white transition-all duration-500 ease-out dark:bg-transparent ${panelStateClassName}`}>
-            <div className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-6 py-4 shadow-sm backdrop-blur-sm dark:border-slate-800/40 dark:bg-slate-950/20">
+        <div className={`absolute inset-0 flex h-full min-h-0 flex-col bg-parchment transition-all duration-500 ease-out dark:bg-ink ${panelStateClassName}`}>
+            <div className="flex items-center justify-between gap-4 border-b border-bone bg-white/80 px-6 py-4 shadow-sm backdrop-blur-sm dark:border-ink-line dark:bg-ink-soft/40">
                 <div className="group flex min-w-0 cursor-pointer items-center gap-3 select-none">
-                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 font-semibold text-white shadow-md">
+                    <div className="h-11 w-11 shrink-0">
                         <Avatar user={user} />
                     </div>
                     <div className="min-w-0">
-                        <h2 className="truncate text-base font-semibold text-slate-900 group-hover:underline dark:text-slate-100">{user?.name}</h2>
-                        <p className={`text-sm ${user?.status === 'online' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {user?.status === 'online' ? 'Online' : user?.status === 'away' ? 'Away' : 'Offline'}
+                        <h2 className="truncate font-display text-base font-semibold text-ink group-hover:text-ember transition-colors dark:text-bone">{user?.name}</h2>
+                        <p className={`font-mono text-[11px] uppercase tracking-wide ${user?.status === 'online' ? 'text-teal' : 'text-dusk'}`}>
+                            {user?.status === 'online' ? 'online' : user?.status === 'away' ? 'away' : 'offline'}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
-                    <div className="  border-t border-white/10 bg-transparent text-sm font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-300 transition-colors">
-                        <button
-                            onClick={onLogout}
-                            className="cursor-pointer p-3 w-full rounded-xl bg-rose-500/10 hover:bg-rose-500 py-2.5 text-sm font-semibold text-rose-400 hover:text-white border border-rose-500/20 transition-all"
-                        >
-                            Sign Out
-                        </button>
-                    </div>
+                <div className="flex items-center gap-1.5 text-dusk">
+                    <button
+                        onClick={onLogout}
+                        className="cursor-pointer rounded-xl border border-ember/20 bg-ember/10 px-3.5 py-2 text-xs font-semibold text-ember transition-all hover:bg-ember hover:text-white"
+                    >
+                        Sign Out
+                    </button>
+
                     <button
                         type="button"
                         onClick={setTheme}
-                        className="relative flex h-9 w-16 cursor-pointer items-center rounded-full border border-slate-200 bg-slate-100 p-1 transition-all duration-300 ease-in-out dark:border-slate-700 dark:bg-slate-800"
+                        className="relative ml-1 flex h-9 w-16 cursor-pointer items-center rounded-full border border-bone bg-bone/50 p-1 transition-all duration-300 ease-in-out dark:border-ink-line dark:bg-white/5"
                         aria-label="Toggle dark mode"
                     >
-                        {/* Sliding indicator bubble */}
                         <div
-                            className={`absolute h-7 w-7 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out flex items-center justify-center dark:bg-slate-950 ${theme === 'dark' ? 'translate-x-7' : 'translate-x-0'
+                            className={`absolute h-7 w-7 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out flex items-center justify-center dark:bg-ink ${theme === 'dark' ? 'translate-x-7' : 'translate-x-0'
                                 }`}
                         >
                             {theme === 'light' ? (
-                                <svg className="h-4 w-4 text-amber-500 transition-transform duration-300 rotate-0" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="h-4 w-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 14.172a1 1 0 011.414 0l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 010-1.414zm-.707-8.485a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" />
                                 </svg>
                             ) : (
-                                <svg className="h-4 w-4 text-sky-400 transition-transform duration-300 rotate-12" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="h-4 w-4 text-ember" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                                 </svg>
                             )}
                         </div>
-
-                        {/* Subtle track icons background */}
-                        <div className="flex w-full justify-between px-1 text-[10px] select-none opacity-40 dark:text-slate-400">
-                            <span>☀️</span>
-                            <span>🌙</span>
-                        </div>
                     </button>
-                    <div className='rounded-full pl-2 pt-2 pb-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800'>
 
-                        <img
-                            src={theme === 'light' ? info_icon_light : info_icon_dark}
-                            alt="info"
-                            className="mr-2 h-5 w-5 cursor-pointer rounded-full object-contain transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                            type="button"
-                            aria-label="View profile details"
-                            onClick={onOpenProfile}
-                        />
+                    <div className="rounded-full p-2.5 cursor-pointer transition-colors hover:bg-bone dark:hover:bg-white/10" onClick={onOpenProfile}>
+                        <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="View profile details">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="11" />
+                            <circle cx="12" cy="8" r="0.5" fill="currentColor" />
+                        </svg>
                     </div>
-                    {/* <button className="rounded-full p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800" type="button" aria-label="Call">☎</button> */}
-                    <div className='relative' ref={menuRef}>
-                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`cursor-pointer rounded-full p-2 transition-colors dark:text-slate-300 ${showProfile ? 'bg-slate-100 text-blue-600 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`} type="button" aria-label="More options">⋯</button>
-                        {/* dropdown menu */}
-                        {isMenuOpen && (
-                            <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-md border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:ring-white/10">
-                                {/* <button
-                                    onClick={() => { onToggleProfile(); setIsMenuOpen(false); }}
-                                    className="w-full px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-                                >
-                                    {showProfile ? 'Hide Profile Details' : 'View Profile Details'}
-                                </button> */}
 
+                    <div className='relative' ref={menuRef}>
+                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`cursor-pointer rounded-full p-2.5 transition-colors ${showProfile ? 'bg-bone text-ember dark:bg-white/10' : 'hover:bg-bone dark:hover:bg-white/10'}`} type="button" aria-label="More options">⋯</button>
+                        {isMenuOpen && (
+                            <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-xl border border-bone bg-white py-1 shadow-lg dark:border-ink-line dark:bg-ink-soft">
                                 <button
                                     onClick={() => { console.log('Muted'); setIsMenuOpen(false); }}
-                                    className=" w-full px-4 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                                    className="w-full px-4 py-2 text-left text-sm text-ink transition-colors hover:bg-bone/60 dark:text-bone dark:hover:bg-white/5"
                                 >
                                     Mute Notifications
                                 </button>
 
-                                <hr className="my-1 border-slate-100 dark:border-slate-800" />
+                                <hr className="my-1 border-bone dark:border-ink-line" />
 
                                 <button
                                     onClick={() => { onDeselectUser(); setIsMenuOpen(false); onCloseProfile(); }}
-                                    className="w-full px-4 py-2 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                                    className="w-full px-4 py-2 text-left text-sm text-rose-500 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10"
                                 >
                                     Close Conversation
                                 </button>
@@ -249,9 +221,9 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                 </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6 sm:px-6 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.03),_transparent_35%),linear-gradient(to_bottom,_#f8fafc,_#f1f5f9)] dark:bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.05),_transparent_45%)]">
-                <div className="mx-auto flex max-w-3xl flex-col gap-4">
-                    <div className="self-center rounded-full bg-white/80 px-4 py-1 text-xs font-medium text-slate-500 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-700">Today</div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-6 sm:px-6 bg-[radial-gradient(circle_at_top,_rgba(255,107,71,0.05),_transparent_40%)] dark:bg-[radial-gradient(circle_at_top,_rgba(255,107,71,0.07),_transparent_45%)]">
+                <div className="mx-auto flex max-w-3xl flex-col gap-3">
+                    <div className="self-center rounded-full bg-white/80 px-4 py-1 font-mono text-[10px] uppercase tracking-widest text-dusk shadow-sm ring-1 ring-bone dark:bg-ink-soft/80 dark:ring-ink-line">Today</div>
 
                     {panelMessages.map((message, index) => (
                         <MessageBubble key={index} message={message} />
@@ -268,23 +240,28 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
     return (
         <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
             <div
-                className={`absolute inset-0 flex items-center justify-center px-6 text-center text-slate-500 transition-all duration-500 ease-out dark:text-slate-400 ${viewState.currentUser
+                className={`absolute inset-0 flex items-center justify-center px-6 text-center transition-all duration-500 ease-out ${viewState.currentUser
                     ? 'pointer-events-none translate-y-4 scale-[0.98] opacity-0'
                     : 'translate-y-0 scale-100 opacity-100'
                     }`}
             >
                 <div>
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Welcome to Chatly</h2>
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Pick a user from the sidebar to start chatting.</p>
+                    <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-ember/10 text-ember">
+                        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="currentColor">
+                            <path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4.4 3.6a.6.6 0 0 1-1-.46V5a1 1 0 0 1 1-1Z" />
+                        </svg>
+                    </span>
+                    <h2 className="font-display text-xl font-bold text-ink dark:text-bone">Welcome to Chatly</h2>
+                    <p className="mt-2 text-sm text-dusk">Pick someone from the sidebar to start chatting.</p>
                 </div>
-                <div className=" fixed bottom-6 right-6 z-50  bg-transparent text-sm font-semibold text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-300 transition-colors">
-                        <button
-                            onClick={onLogout}
-                            className="cursor-pointer p-3 w-full rounded-xl bg-rose-500/10 hover:bg-rose-500 py-2.5 text-sm font-semibold text-rose-400 hover:text-white border border-rose-500/20 transition-all"
-                        >
-                            Sign Out
-                        </button>
-                    </div>
+                <div className="fixed bottom-6 right-6 z-50">
+                    <button
+                        onClick={onLogout}
+                        className="cursor-pointer rounded-xl border border-ember/20 bg-ember/10 px-4 py-2.5 text-sm font-semibold text-ember transition-all hover:bg-ember hover:text-white"
+                    >
+                        Sign Out
+                    </button>
+                </div>
             </div>
 
             {viewState.previousUser && viewState.currentUser ? (

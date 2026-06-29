@@ -1,29 +1,21 @@
 import { useState } from 'react';
-import attachLightIcon from '../../images/attach-light.png'; 
-import attachDarkIcon from '../../images/attach-dark.png'; 
-import sendLightIcon from '../../images/sendLight.png'; 
-import sendDarkIcon from '../../images/sendDark.png'; 
 
-function MessageInput({ theme, onSendMessage }) {
+function MessageInput({ onSendMessage }) {
     const [messageText, setMessageText] = useState('');
-    // 1. Add state to hold the selected file
     const [selectedFile, setSelectedFile] = useState(null);
 
     const handleSubmit = (event) => {
         event.preventDefault();
 
-        // 2. Allow submit if there is EITHER text OR a file attached
         if (!messageText.trim() && !selectedFile) {
             return;
         }
 
-        // 3. Pass both the text and the file to your parent component
         onSendMessage(messageText, selectedFile);
-        
-        // 4. Reset the input fields after sending
+
         setMessageText('');
         setSelectedFile(null);
-        document.getElementById('file-upload').value = ''; // Resets the actual file picker
+        document.getElementById('file-upload').value = '';
     };
 
     const handleKeyDown = (event) => {
@@ -33,22 +25,23 @@ function MessageInput({ theme, onSendMessage }) {
         }
     };
 
-    // Helper to remove the file before sending
     const clearFile = () => {
         setSelectedFile(null);
         document.getElementById('file-upload').value = '';
     };
 
+    const canSend = Boolean(messageText.trim() || selectedFile);
+
     return (
-        <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900">
-            {/* 📁 FILE PREVIEW UI: Shows up only when a file is selected */}
+        <form onSubmit={handleSubmit} className="border-t border-bone bg-white px-4 py-4 sm:px-6 dark:border-ink-line dark:bg-ink">
+            {/* 📁 FILE PREVIEW */}
             {selectedFile && (
-                <div className="mx-auto max-w-3xl mb-2 flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300 w-fit">
+                <div className="mx-auto max-w-3xl mb-2 flex items-center gap-2 rounded-lg bg-bone/50 px-3 py-2 text-sm text-ink dark:bg-white/5 dark:text-bone w-fit">
                     <span className="truncate max-w-[200px] font-medium">{selectedFile.name}</span>
-                    <button 
-                        type="button" 
+                    <button
+                        type="button"
                         onClick={clearFile}
-                        className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-slate-300 dark:hover:bg-slate-600"
+                        className="flex h-5 w-5 items-center justify-center rounded-full text-dusk hover:bg-bone hover:text-ink dark:hover:bg-white/10 dark:hover:text-bone"
                         title="Remove file"
                     >
                         ✕
@@ -56,49 +49,45 @@ function MessageInput({ theme, onSendMessage }) {
                 </div>
             )}
 
-            <div className="mx-auto flex max-w-3xl items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-bone bg-parchment/60 px-3 py-2.5 shadow-sm dark:border-ink-line dark:bg-ink-soft">
                 <label
-                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700 shrink-0"
+                    className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-dusk transition-colors hover:bg-bone hover:text-ink dark:hover:bg-white/10 dark:hover:text-bone shrink-0"
                     aria-label="Attach file"
                 >
                     <input
                         id="file-upload"
                         type="file"
                         className="hidden"
-                        // Save the file to state instead of just console logging it
                         onChange={(e) => setSelectedFile(e.target.files[0])}
                     />
-                    <img
-                        src={theme === 'light' ? attachLightIcon : attachDarkIcon}
-                        alt="Attach file"
-                        className="h-5 w-5"
-                    />
+                    <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05 12.25 20.24a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.667 3.667 0 1 1 5.18 5.18l-9.2 9.19a1.833 1.833 0 0 1-2.59-2.59l8.49-8.48" />
+                    </svg>
                 </label>
-                
+
                 <textarea
                     id='txtarea'
-                    className="min-h-[29px] flex-1 resize-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100 dark:placeholder:text-slate-500 py-1"
+                    className="min-h-[28px] mb-[4px] flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-dusk/70 dark:text-bone dark:placeholder:text-dusk py-1.5"
                     placeholder="Type a message..."
                     rows="1"
                     value={messageText}
                     onChange={(event) => setMessageText(event.target.value)}
                     onKeyDown={handleKeyDown}
                 />
-                
+
                 <button
-                    className={`cursor-pointer rounded-full px-5 py-2.5 text-sm font-medium transition-colors shrink-0 ${
-                        messageText.trim() || selectedFile 
-                        ? 'bg-sky-500 text-white hover:bg-sky-600 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400' 
-                        : 'bg-slate-300 text-slate-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500'
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all ${
+                        canSend
+                            ? 'bg-ember text-white hover:bg-[#ff5a35] shadow-md shadow-ember/30 active:scale-95'
+                            : 'bg-bone text-dusk/60 cursor-not-allowed dark:bg-white/5 dark:text-dusk/50'
                     }`}
                     type="submit"
-                    disabled={!messageText.trim() && !selectedFile}
+                    disabled={!canSend}
+                    aria-label="Send message"
                 >
-                    <img
-                        src={theme === 'light' ? sendLightIcon : sendDarkIcon}
-                        alt="Send message"
-                        className="h-5 w-5 opacity-90"
-                    />
+                    <svg className="h-[18px] w-[18px] translate-x-px" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3.4 20.4 21 12 3.4 3.6a.6.6 0 0 0-.86.68L5.2 12 2.54 19.72a.6.6 0 0 0 .86.68Z" />
+                    </svg>
                 </button>
             </div>
         </form>

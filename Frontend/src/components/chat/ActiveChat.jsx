@@ -2,7 +2,7 @@ import ChatContainer from './ChatContainer';
 
 function ActiveChat({ theme, setTheme, onLogout, activeUser, messages, isDetailTabOpen, onSendMessage, onDeselectUser, onCloseProfile, onOpenProfile, onToggleProfile }) {
     return (
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
+        <div className="flex-1 min-w-0 flex flex-col overflow-hidden bg-parchment dark:bg-ink">
             <ChatContainer
                 theme={theme}
                 setTheme={setTheme}

@@ -3,16 +3,7 @@ import { io } from 'socket.io-client';
 
 const SOCKET_URL = 'http://localhost:5000';
 
-export const useSocket = (
-    currentUserId,
-    onMessageReceived,
-    onStatusChanged,
-    onAvatarChanged,
-    onFriendRequestReceived,
-    onFriendRequestAccepted,
-    onFriendRequestDeclined,
-    onFriendRequestCancelled
-) => {
+export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged) => {
     const socketRef = useRef(null);
 
     useEffect(() => {
@@ -34,41 +25,12 @@ export const useSocket = (
             if (onAvatarChanged) onAvatarChanged(avatarPayload);
         });
 
-        // 📨 Someone just sent ME a friend request
-        socketRef.current.on('friendRequestReceived', (payload) => {
-            if (onFriendRequestReceived) onFriendRequestReceived(payload);
-        });
-
-        // ✅ Someone accepted a friend request I sent them
-        socketRef.current.on('friendRequestAccepted', (payload) => {
-            if (onFriendRequestAccepted) onFriendRequestAccepted(payload);
-        });
-
-        // ❌ Someone declined a friend request I sent them
-        socketRef.current.on('friendRequestDeclined', (payload) => {
-            if (onFriendRequestDeclined) onFriendRequestDeclined(payload);
-        });
-
-        // 🚫 Someone cancelled a friend request they'd sent me
-        socketRef.current.on('friendRequestCancelled', (payload) => {
-            if (onFriendRequestCancelled) onFriendRequestCancelled(payload);
-        });
-
         return () => {
             if (socketRef.current) {
                 socketRef.current.disconnect();
             }
         };
-    }, [
-        currentUserId,
-        onMessageReceived,
-        onStatusChanged,
-        onAvatarChanged,
-        onFriendRequestReceived,
-        onFriendRequestAccepted,
-        onFriendRequestDeclined,
-        onFriendRequestCancelled
-    ]);
+    }, [currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged]);
 
     const emitSendMessage = (receiverId, text, file) => {
         if (socketRef.current) {

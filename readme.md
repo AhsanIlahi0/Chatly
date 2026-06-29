@@ -1,148 +1,114 @@
-<h1 align="center">💬 Chatly</h1>
+# 💬 Chatly — Enterprise Real-Time Chat Engine
 
-<p align="center">
-  A real-time, one-on-one chat application built on the MERN stack with Socket.IO — instant messaging, file/image sharing, presence status, and a light/dark UI.
-</p>
+A polished, full-stack real-time chat application built using the MERN stack (MongoDB, Express, React, Node.js) and enhanced with bi-directional WebSocket communication via Socket.io. Features secure session routing, a responsive fluid UI layout, dynamic cloud media management, and real-time synchronization pipelines.
 
 ---
 
-## Overview
+## ✨ Features
 
-Chatly is a full-stack real-time messaging app:
+- **🔒 Sticky Authentication & Session Isolation:** Built using browser-isolated `sessionStorage` sandboxes, explicitly allowing multi-profile side-by-side execution tabs for developers and users without account pollution or state collision on manual page reloads.
+- **⚡ Real-Time Bi-directional Communication:** Fueled by a custom Socket.io integration mapping live event listeners for immediate text and media delivery, as well as active contact connection lifecycle states (Online/Offline/Away).
+- **🎨 Visual Paradigm "Circles" Login Interface:** A custom layout design featuring premium glassmorphism, responsive canvas dimensions, and deep navy-blue dark mode components matching a high-fidelity design schema.
+- **🖼️ Real-Time Profile Avatar Propagation:** Upload custom image assets seamlessly routed through Cloudinary transformations, written directly to MongoDB User documents, and broadcasted globally across active channels instantly via low-latency websocket hooks.
+- **📜 Smart Hybrid Scroll Viewport Execution:** A precision layout monitoring engine that smoothly glides downwards to catch new incoming message fragments while applying zero-lag instant snap coordinates on heavy initial room history loading sequences.
 
-- **Frontend** — a React (Vite) single-page app with a sidebar of users, a chat panel, and a profile detail panel.
-- **Backend** — a Node.js/Express REST API + Socket.IO server for auth, message history, and live delivery.
-- **Database** — MongoDB (via Mongoose) storing users and messages.
+---
 
-## Features
+## 🛠️ Tech Stack
 
-- 🔐 **Authentication** — email/password sign up and login, with passwords hashed using `bcryptjs`. The logged-in session is restored from `localStorage` on page reload.
-- 💬 **Real-time 1:1 messaging** — messages are delivered instantly over **Socket.IO** and persisted to MongoDB, with full chat history fetched per-conversation.
-- 📎 **File & image sharing** — attach a file to a message; images are auto-compressed client-side (resized to a 1200px max dimension) if larger than 2MB, then uploaded directly to **Cloudinary** before the message is sent.
-- 🟢 **Presence status** — online/offline status is tracked server-side per socket connection and broadcast to all connected clients.
-- 🔎 **Live user search** — filter the sidebar's user directory by name as you type.
-- 📜 **Smart auto-scroll** — the chat panel smoothly scrolls for newly arriving messages, but jumps instantly to the bottom when switching conversations or loading history, so long threads don't visibly "scroll past."
-- 🌗 **Light/dark theme** — toggle persisted in `localStorage`, defaulting to the system's preferred color scheme.
+### Frontend Architecture
+- **Core Framework:** React.js (Vite configuration workflow)
+- **Styling Utility:** Tailwind CSS (Custom color extensions, nested interactive states)
+- **State Strategy:** React Hooks (`useState`, `useEffect`, `useRef`, `useCallback`, `useMemo`)
+- **HTTP Transport:** Axios (Asynchronous REST operations)
 
-## Tech Stack
+### Backend Infrastructure
+- **Runtime Environment:** Node.js & Express framework server engine
+- **WebSocket Gateway:** Socket.io Core Library
+- **Database Model:** MongoDB using the Mongoose Object Data Modeling (ODM) layer
+- **Media Optimization Pipeline:** Cloudinary REST API asset storage
 
-| Layer    | Technology |
-|----------|------------|
-| Frontend | React 19, Vite, Tailwind CSS v4, Axios, Socket.IO Client, Cloudinary (direct browser upload) |
-| Backend  | Node.js, Express 5, Socket.IO, MongoDB, Mongoose, bcryptjs, dotenv, cors |
-| Auth     | Password hashing via bcryptjs (see [Known Issues](#known-issues--things-to-clean-up) re: JWT) |
+---
 
-## Project Structure
+## 📦 System Architecture & Directory Layout
 
-```
-Chatly-main/
+```text
+chatly/
 ├── Backend/
-│   └── src/
-│       ├── server.js              # Express + Socket.IO bootstrap, Mongo connection
-│       ├── models/
-│       │   ├── user.js            # User schema (name, email, password, avatar, status, about)
-│       │   └── message.js         # Message schema (sender, receiver, text, file, status)
-│       ├── routes/
-│       │   ├── auth.js            # Active auth routes: /signup, /login, /all-users
-│       │   └── messageRoutes.js   # GET /:myId/:partnerId — chat history
-│       ├── controllers/
-│       │   └── messageController.js  # getChatHistory (used by messageRoutes)
-│       └── sockets/
-│           └── chatSocket.js       # registerUser / sendMessage / updateAvatar socket events
+│   ├── src/
+│   │   ├── models/          # Mongoose database schemas (User.js, Message.js)
+│   │   ├── routes/          # Express application API endpoints (/api/auth, /api/messages)
+│   │   ├── sockets/         # Socket.io modular event routers (chatSocket.js)
+│   │   └── server.js        # Core server bootstrap entry configuration point
+│   └── .env                 # Environment configurations (MONGO_URI, PORT)
 └── Frontend/
-    └── src/
-        ├── App.jsx                 # Auth gate, top-level state, Cloudinary upload logic
-        ├── components/
-        │   ├── chat/               # ChatContainer (header + scroll logic), MessageBubble, MessageInput
-        │   ├── sidebar/             # Sidebar, SearchInput, UserItem, Avatar
-        │   └── profile/             # DetailTab (read-only profile panel)
-        └── hooks/
-            ├── useSocket.js         # Socket.IO connection + emit/listen helpers
-            └── useDarkMode.js       # Theme state, persisted to localStorage
+    ├── src/
+    │   ├── components/      # UI Layout modules (ChatContainer, Sidebar, ActiveChat, MessageBubble)
+    │   ├── hooks/           # Abstract custom hook orchestration (useSocket, useDarkMode)
+    │   ├── images/          # Static local asset binaries and vectors
+    │   ├── App.jsx          # Frontend client root routing and global state core
+    │   └── main.jsx         # Application viewport DOM mounting script
 ```
 
-## API Reference
 
-Base URL: `http://localhost:5000`
+🚀 Installation & Local Environment Configuration
+Prerequisites
+Ensure your workstation has Node.js (v16+) installed alongside a running instance of MongoDB (Local Community Edition daemon or an Atlas Cloud cluster connection string URL).
 
-| Method | Endpoint | Description |
-|--------|----------|--------------|
-| POST   | `/api/auth/signup` | Create an account (`{ name, email, password }`) |
-| POST   | `/api/auth/login` | Log in (`{ email, password }`) |
-| GET    | `/api/auth/all-users` | Get the user directory for the sidebar |
-| GET    | `/api/messages/:myId/:partnerId` | Get the message history between two users |
+1. Initializing the Server Core
+Navigate into your backend cluster workspace terminal directory:
 
-### Socket.IO events
-
-| Direction | Event | Payload | Purpose |
-|-----------|-------|---------|---------|
-| client → server | `registerUser` | `userId` | Marks a user online and maps their socket |
-| client → server | `sendMessage` | `{ senderId, receiverId, text, file }` | Saves a message and forwards it live |
-| client → server | `updateAvatar` | `{ userId, avatarUrl }` | Broadcasts an avatar change |
-| server → client | `receiveMessage` | message object | New message for the recipient |
-| server → client | `userStatusChanged` | presence payload | A user went online/offline |
-| server → client | `userAvatarChanged` | `{ userId, avatarUrl }` | Another user updated their avatar |
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js v16+
-- MongoDB (local or Atlas)
-- A Cloudinary account if you want file/image attachments to work (see note below)
-
-### 1. Backend setup
-
-```bash
+Bash
 cd Backend
 npm install
-```
+Create a .env configuration file right inside your Backend/ directory and configure your targeted environment paths:
 
-Create a `.env` file inside `Backend/`:
-
-```env
+Code snippet
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/chatly
-```
+Launch the Node.js backend server instance pipeline:
 
-Start the server (there's no `npm start` script defined yet, so run the entry file directly, or install `nodemon` for auto-reload during development):
+Bash
+npm start
+The console will log: 📦 Connected to MongoDB successfully! followed by 🚀 Server processing on port 5000.
 
-```bash
-node src/server.js
-# or, for auto-reload while developing:
-npx nodemon src/server.js
-```
+2. Spinning Up the Client Interface
+Navigate out to your root shell and move into your client build terminal context:
 
-You should see:
-
-```
-📦 Connected to MongoDB successfully!
-🚀 Server processing on port 5000
-```
-
-### 2. Frontend setup
-
-```bash
-cd Frontend
+Bash
+cd ../Frontend
 npm install
+Launch the lightning-fast Vite compilation server environment layout:
+
+Bash
 npm run dev
-```
+Your browser will spin up locally on http://localhost:5173. Open it up, duplicate an alternate window using your browser's Incognito / Private Window, create two separate user profile identities, and watch messages reflect instantly.
 
-Open `http://localhost:5173`. To test real-time messaging, open a second browser (or a different browser profile — see the note on `localStorage` below) and sign up with a second account.
+💡 Technical Design Implementation Deep-Dive
+Multi-Tab Concurrent Sandbox Strategy
+By transforming standard global session structures from shared localStorage arrays into context-isolated sessionStorage engines, Chatly maps private storage silos distinct to every unique browser tab. This removes local cross-contamination, allowing engineering groups to test multi-user conversational flows on a single device easily.
 
-### 3. File/image attachments (optional)
+Dynamic Layout Thrashing & Scroll Mitigation
+JavaScript
+useEffect(() => {
+    if (!viewState.isSwitching && viewState.currentMessages.length > 0) {
+        const currentCount = viewState.currentMessages.length;
+        const prevCount = prevMessageCountRef.current;
+        
+        // Differentiate heavy initialization loads from small real-time chat fragments
+        const isLiveNewMessage = currentCount - prevCount > 0 && currentCount - prevCount <= 2;
+        
+        const scrollTimeout = setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ 
+                behavior: isLiveNewMessage ? 'smooth' : 'auto' 
+            });
+        }, 30);
+        
+        prevMessageCountRef.current = currentCount;
+        return () => clearTimeout(scrollTimeout);
+    }
+}, [viewState.currentMessages, viewState.isSwitching]);
+This custom React execution hook preserves DOM recalculation loops. By analyzing length delta transformations, it maps an automated execution fork: small increments (live chat text) trigger fluid layout movements (behavior: 'smooth'), while massive arrays (historical thread loads) snap instantly to viewport coordinates (behavior: 'auto'). This completely eliminates browser stuttering over large data loads.
 
-`Frontend/src/App.jsx` uploads attachments straight to Cloudinary using a hardcoded cloud name and unsigned upload preset. To use your own Cloudinary account, replace the cloud name in the upload URL and the `upload_preset` value with your own unsigned preset.
-
-## Known Issues / Things to Clean Up
-
-- **Model filename casing** — `models/user.js` and `models/message.js` are required elsewhere as `../models/User` and `../models/Message`. This works on case-insensitive filesystems (Windows, macOS) but will throw `Cannot find module` on case-sensitive ones (Linux, most CI/CD and Docker images). Either rename the files to match or fix the `require` paths before deploying to Linux.
-- **`registerUser` socket handler bug** — `Backend/src/sockets/chatSocket.js` looks up `User.findById(userId)` but never imports the `User` model in that file, so this will throw at runtime. Add `const User = require('../models/User');` at the top of `chatSocket.js`.
-- **Unused JWT auth path** — `controllers/authController.js` and `controllers/userController.js` implement a JWT-based login/user-lookup flow, but neither is wired into any route. The app's actual login/signup flow is the plain (non-JWT) version in `routes/auth.js`. `JWT_SECRET` isn't required for the app to run today.
-- **Session storage** — the logged-in user is kept in `localStorage` (key `chatly_user`), not `sessionStorage`, so a single browser holds one session across all its tabs. To test two accounts at once, use two different browsers or an incognito window rather than a second tab.
-- **Unused Firebase dependency** — `firebase` is installed and imported in `App.jsx`, but attachments actually go through Cloudinary; the Firebase Storage import is dead code and can be removed.
-- **Stub files** — `components/chat/Messages.jsx`, `components/chat/ChatHeader.jsx`, and `components/profile/ProfilePanel.jsx` are currently empty; the chat header and message list are actually implemented inline in `ChatContainer.jsx`.
-
-## License
-
-No `LICENSE` file is currently included in this repository. Add one (e.g. MIT) if you intend to share or open-source this project.
+📄 License
+Distributed under the MIT License. Open source and ready for modifications.

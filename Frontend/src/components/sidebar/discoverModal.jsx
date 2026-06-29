@@ -1,134 +1,69 @@
-// Frontend/src/components/sidebar/discoverModal.jsx
+// Frontend/src/components/DiscoverModal.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import Avatar from './avatar';
 
-function DiscoverModal({ isOpen, onClose, currentUser, onSendRequest, onAcceptRequest }) {
+function DiscoverModal({ isOpen, onClose, currentUser, socket }) {
     const [allUsers, setAllUsers] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [pendingActionId, setPendingActionId] = useState(null);
-    const [actionError, setActionError] = useState('');
 
-    const currentUserId = currentUser?._id || currentUser?.id || currentUser;
-
-    const loadDirectory = () => {
-        if (!currentUserId) return;
-        setLoading(true);
-        axios.get(`http://localhost:5000/api/friends/${currentUserId}/discover`)
-            .then(res => setAllUsers(res.data))
-            .catch(err => console.error("Failed to load user directory:", err))
-            .finally(() => setLoading(false));
-    };
+    const currentUserId = currentUser?._id || currentUser;
 
     useEffect(() => {
-        (async () => {
-            if (isOpen) {
-                setSearchTerm('');
-                setActionError('');
-                loadDirectory();
-            }
-        })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (isOpen && currentUserId) {
+            setLoading(true);
+            axios.get(`http://localhost:5000/api/auth/discover/${currentUserId}`)
+                .then(res => setAllUsers(res.data))
+                .catch(err => console.error(err))
+                .finally(() => setLoading(false));
+        }
     }, [isOpen, currentUserId]);
 
     if (!isOpen) return null;
-
-    const visibleUsers = allUsers.filter(u =>
-        `${u.name} ${u.email}`.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const handleSend = async (user) => {
-        setPendingActionId(user._id);
-        setActionError('');
-        const result = await onSendRequest(user._id);
-        if (result?.success) {
-            loadDirectory();
-        } else {
-            setActionError(result?.message || "Couldn't send that request");
-        }
-        setPendingActionId(null);
-    };
-
-    const handleQuickAccept = async (user) => {
-        if (!user.relationship?.requestId) return;
-        setPendingActionId(user._id);
-        await onAcceptRequest(user.relationship.requestId);
-        loadDirectory();
-        setPendingActionId(null);
-    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-white/10 p-6 shadow-2xl text-white">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-                    <h2 className="text-lg font-bold">Find People</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors" aria-label="Close">✕</button>
+                    <h2 className="text-lg font-bold">Discover Users</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">✕</button>
                 </div>
-
-                <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search by name or email..."
-                    className="w-full mb-4 rounded-xl bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:ring-2 focus:ring-sky-500"
-                />
-
-                {actionError && (
-                    <div className="mb-3 rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-2 text-xs text-rose-300">
-                        {actionError}
-                    </div>
-                )}
 
                 {loading ? (
                     <div className="py-8 text-center text-sm text-slate-400">Searching directory entries...</div>
-                ) : visibleUsers.length === 0 ? (
+                ) : allUsers.length === 0 ? (
                     <div className="py-8 text-center text-sm text-slate-400">No other users found in database registry.</div>
                 ) : (
-                    <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                        {visibleUsers.map(user => {
-                            const relationship = user.relationship;
-                            const isBusy = pendingActionId === user._id;
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                        {allUsers.map(user => {
+                            // Check relationships using safe optional chaining checks
+                            const existingRelation = currentUser?.friends?.find(f => (f.recipient?._id || f.recipient) === user._id) || 
+                                                     user?.friends?.find(f => (f.recipient?._id || f.recipient) === currentUserId);
 
                             return (
-                                <div key={user._id} className="flex items-center justify-between gap-3 bg-slate-950/40 p-3 rounded-xl border border-white/5">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <Avatar user={user} />
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-sm font-semibold truncate">{user.name}</span>
-                                            <span className="text-[10px] text-slate-500 truncate">{user.email}</span>
+                                <div key={user._id} className="flex items-center justify-between bg-slate-950/40 p-3 rounded-xl border border-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-full bg-sky-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                                            {user.name ? user.name.substring(0, 2).toUpperCase() : "??"}
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-semibold">{user.name}</span>
+                                            <span className="text-[10px] text-slate-500">{user.email}</span>
                                         </div>
                                     </div>
 
-                                    {!relationship && (
-                                        <button
-                                            onClick={() => handleSend(user)}
-                                            disabled={isBusy}
-                                            className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 transition-all active:scale-95 disabled:opacity-50"
-                                        >
-                                            {isBusy ? "Sending..." : "Add Friend"}
-                                        </button>
-                                    )}
-
-                                    {relationship?.status === 'accepted' && (
-                                        <span className="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                                            Friends
+                                    {existingRelation ? (
+                                        <span className="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-400 capitalize border border-white/5">
+                                            {existingRelation.status}
                                         </span>
-                                    )}
-
-                                    {relationship?.status === 'pending' && relationship.direction === 'outgoing' && (
-                                        <span className="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-400 border border-white/5">
-                                            Requested
-                                        </span>
-                                    )}
-
-                                    {relationship?.status === 'pending' && relationship.direction === 'incoming' && (
-                                        <button
-                                            onClick={() => handleQuickAccept(user)}
-                                            disabled={isBusy}
-                                            className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all active:scale-95 disabled:opacity-50"
+                                    ) : (
+                                        <button 
+                                            onClick={() => {
+                                                axios.post('http://localhost:5000/api/auth/users', { senderId: currentUserId, receiverId: user._id });
+                                                onClose();
+                                            }}
+                                            className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 transition-all active:scale-95"
                                         >
-                                            {isBusy ? "..." : "Accept Request"}
+                                            Add Friend
                                         </button>
                                     )}
                                 </div>
