@@ -63,9 +63,9 @@ function DetailTab({ activeUser, isOpen, onClose }) {
 
                         <div className="mt-7 flex gap-2">
                             <button onClick={() => {
-                               
+                                onClose();
                                 document.getElementById("txtarea").focus();
-                            }, {onClose}} className="cursor-pointer flex-1 rounded-xl bg-ember py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff5a35]">Message</button>
+                            }} className="cursor-pointer flex-1 rounded-xl bg-ember py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#ff5a35]">Message</button>
                             <button className="rounded-xl cursor-pointer border border-bone py-2.5 px-4 text-sm font-medium text-ink transition-colors hover:bg-bone/60 dark:border-ink-line dark:text-bone dark:hover:bg-white/5">More</button>
                         </div>
                     </div>
