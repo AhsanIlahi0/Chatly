@@ -18,10 +18,9 @@ const server = http.createServer(app); // Connect Express app into an HTTP serve
 // Inside your Backend file where Socket.io is initialized
 const io = require('socket.io')(server, {
     cors: {
-        origin: "http://localhost:5173", // Your frontend URL
+        origin: ["http://localhost:5173", "https://chatly-gamma-ten.vercel.app"],
         methods: ["GET", "POST"]
     },
-    // 🛠️ ADD THIS LINE (Raises the limit to 20MB, adjust as needed)
     maxHttpBufferSize: 2e7
 });
 app.use('/api/messages', messageRoutes);
