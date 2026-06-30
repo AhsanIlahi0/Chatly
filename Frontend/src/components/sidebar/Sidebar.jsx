@@ -2,7 +2,7 @@ import { useState } from 'react';
 import SearchInput from './SearchInput';
 import UserItem from './UserItem';
 
-function Sidebar({ users = [], activeUserId, onSelectUser, onLogout }) {
+function Sidebar({ users = [], activeUserId, onSelectUser, onLogout, isChatActive }) {
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredUsers = users.filter(user =>
@@ -12,7 +12,7 @@ function Sidebar({ users = [], activeUserId, onSelectUser, onLogout }) {
     const onlineCount = users.filter(u => u.status === 'online').length;
 
     return (
-        <div className="w-80 h-screen flex flex-col overflow-hidden bg-white/90 text-ink border-r border-bone backdrop-blur-sm dark:bg-ink-soft/40 dark:border-ink-line dark:text-bone">
+        <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-80 h-screen flex-col overflow-hidden bg-white/90 text-ink border-r border-bone backdrop-blur-sm dark:bg-ink-soft/40 dark:border-ink-line dark:text-bone`}>
 
             {/* Header / brand mark */}
             <div className="px-5 py-5 border-b border-bone dark:border-ink-line">

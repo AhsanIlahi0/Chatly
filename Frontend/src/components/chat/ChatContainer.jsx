@@ -145,7 +145,18 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
 
     const renderChatPanel = (user, panelMessages, panelStateClassName, attachScrollTarget = true) => (
         <div className={`absolute inset-0 flex h-full min-h-0 flex-col bg-parchment transition-all duration-500 ease-out dark:bg-ink ${panelStateClassName}`}>
-            <div className="flex items-center justify-between gap-4 border-b border-bone bg-white/80 px-6 py-4 shadow-sm backdrop-blur-sm dark:border-ink-line dark:bg-ink-soft/40">
+            <div className="relative z-20 flex items-center justify-between gap-2 border-b border-bone bg-white/80 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-ink-line dark:bg-ink-soft/40 sm:gap-4 sm:px-6 sm:py-4">                <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+                <button
+                    type="button"
+                    onClick={onDeselectUser}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-dusk transition-colors hover:bg-bone hover:text-ink dark:hover:bg-white/10 dark:hover:text-bone md:hidden"
+                    aria-label="Back to conversations"
+                >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
+                </button>
+
                 <div className="group flex min-w-0 cursor-pointer items-center gap-3 select-none">
                     <div className="h-11 w-11 shrink-0">
                         <Avatar user={user} />
@@ -157,38 +168,45 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                         </p>
                     </div>
                 </div>
+            </div>
 
-                <div className="flex items-center gap-1.5 text-dusk">
+                <div className="flex shrink-0 items-center gap-1 text-dusk sm:gap-1.5">
                     <button
                         onClick={onLogout}
-                        className="cursor-pointer rounded-xl border border-ember/20 bg-ember/10 px-3.5 py-2 text-xs font-semibold text-ember transition-all hover:bg-ember hover:text-white"
+                        aria-label="Sign out"
+                        className="cursor-pointer rounded-xl border border-ember/20 bg-ember/10 p-2 text-xs font-semibold text-ember transition-all hover:bg-ember hover:text-white sm:px-3.5 sm:py-2"
                     >
-                        Sign Out
+                        <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <path d="M16 17l5-5-5-5" />
+                            <path d="M21 12H9" />
+                        </svg>
+                        <span className="hidden sm:inline">Sign Out</span>
                     </button>
 
                     <button
                         type="button"
                         onClick={setTheme}
-                        className="relative ml-1 flex h-9 w-16 cursor-pointer items-center rounded-full border border-bone bg-bone/50 p-1 transition-all duration-300 ease-in-out dark:border-ink-line dark:bg-white/5"
+                        className="relative ml-0.5 flex h-8 w-14 cursor-pointer items-center rounded-full border border-bone bg-bone/50 p-1 transition-all duration-300 ease-in-out dark:border-ink-line dark:bg-white/5 sm:ml-1 sm:h-9 sm:w-16"
                         aria-label="Toggle dark mode"
                     >
                         <div
-                            className={`absolute h-7 w-7 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out flex items-center justify-center dark:bg-ink ${theme === 'dark' ? 'translate-x-7' : 'translate-x-0'
+                            className={`absolute h-6 w-6 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out flex items-center justify-center dark:bg-ink sm:h-7 sm:w-7 ${theme === 'dark' ? 'translate-x-6 sm:translate-x-7' : 'translate-x-0'
                                 }`}
                         >
                             {theme === 'light' ? (
-                                <svg className="h-4 w-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="h-3.5 w-3.5 text-amber-500 sm:h-4 sm:w-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 14.172a1 1 0 011.414 0l.707.707a1 1 0 01-1.414 1.414l-.707-.707a1 1 0 010-1.414zm-.707-8.485a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" />
                                 </svg>
                             ) : (
-                                <svg className="h-4 w-4 text-ember" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="h-3.5 w-3.5 text-ember sm:h-4 sm:w-4" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
                                 </svg>
                             )}
                         </div>
                     </button>
 
-                    <div className="rounded-full p-2.5 cursor-pointer transition-colors hover:bg-bone dark:hover:bg-white/10" onClick={onOpenProfile}>
+                    <div className="hidden rounded-full p-2.5 cursor-pointer transition-colors hover:bg-bone dark:hover:bg-white/10 sm:block" onClick={onOpenProfile}>
                         <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="View profile details">
                             <circle cx="12" cy="12" r="10" />
                             <line x1="12" y1="16" x2="12" y2="11" />
@@ -197,9 +215,15 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                     </div>
 
                     <div className='relative' ref={menuRef}>
-                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`cursor-pointer rounded-full p-2.5 transition-colors ${showProfile ? 'bg-bone text-ember dark:bg-white/10' : 'hover:bg-bone dark:hover:bg-white/10'}`} type="button" aria-label="More options">⋯</button>
+                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`cursor-pointer rounded-full p-2 sm:p-2.5 transition-colors ${showProfile ? 'bg-bone text-ember dark:bg-white/10' : 'hover:bg-bone dark:hover:bg-white/10'}`} type="button" aria-label="More options">⋯</button>
                         {isMenuOpen && (
                             <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-xl border border-bone bg-white py-1 shadow-lg dark:border-ink-line dark:bg-ink-soft">
+                                <button
+                                    onClick={() => { onOpenProfile(); setIsMenuOpen(false); }}
+                                    className="w-full px-4 py-2 text-left text-sm text-ink transition-colors hover:bg-bone/60 dark:text-bone dark:hover:bg-white/5 sm:hidden"
+                                >
+                                    View Profile
+                                </button>
                                 <button
                                     onClick={() => { console.log('Muted'); setIsMenuOpen(false); }}
                                     className="w-full px-4 py-2 text-left text-sm text-ink transition-colors hover:bg-bone/60 dark:text-bone dark:hover:bg-white/5"

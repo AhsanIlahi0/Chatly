@@ -12,7 +12,7 @@ function MessageBubble({ message }) {
     return (
         <div className={`flex animate-rise-in ${message.sent ? 'justify-end' : 'justify-start'} mb-1`}>
             <div
-                className={`max-w-[65%] sm:max-w-[55%] flex flex-col rounded-2xl shadow-sm overflow-hidden ${message.sent
+                className={`max-w-[82%] sm:max-w-[65%] md:max-w-[55%] flex flex-col rounded-2xl shadow-sm overflow-hidden ${message.sent
                     ? 'rounded-br-md bg-gradient-to-br from-ember to-[#ff5a35] text-white shadow-ember/10'
                     : 'rounded-bl-md bg-white text-ink ring-1 ring-bone dark:bg-ink-soft dark:text-bone dark:ring-ink-line'
                     }`}

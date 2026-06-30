@@ -1,13 +1,18 @@
 import Avatar from '../sidebar/avatar';
 
 function DetailTab({ activeUser, isOpen, onClose }) {
+    const visible = isOpen && activeUser;
+
     return (
-        /* The width changes from w-0 to w-72 with transitions */
+        /* Mobile: full-screen overlay when open, hidden otherwise.
+           Desktop (md+): the original collapsing slide-in column. */
         <aside
-            className={`bg-white overflow-hidden flex-shrink-0 border-l border-bone transition-all duration-400 ease-out dark:bg-ink dark:border-ink-line ${isOpen && activeUser ? "w-72 opacity-100" : "w-0 opacity-0 border-l-0"
-                }`}
+            className={`${visible
+                ? 'fixed inset-0 z-50 w-full opacity-100 md:static md:z-auto md:w-72'
+                : 'hidden md:block md:w-0 md:opacity-0 md:border-l-0'
+                } flex-shrink-0 overflow-hidden border-l border-bone bg-white transition-all duration-400 ease-out dark:border-ink-line dark:bg-ink`}
         >
-            <div className="bg-white text-ink w-72 h-full flex flex-col overflow-y-auto dark:bg-gradient-to-br dark:from-ink-soft dark:to-ink dark:text-bone">
+            <div className="bg-white text-ink h-full w-full flex flex-col overflow-y-auto dark:bg-gradient-to-br dark:from-ink-soft dark:to-ink dark:text-bone md:w-72">
                 <div className="flex items-center gap-2 border-b border-bone px-5 py-5 dark:border-ink-line">
                     <button
                         type="button"

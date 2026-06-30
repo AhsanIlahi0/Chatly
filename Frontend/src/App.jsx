@@ -7,7 +7,6 @@ import { useSocket } from './hooks/useSocket';
 import axios from 'axios';
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { API_URL } from "./config";
 
 function App() {
     const [theme, toggleTheme] = useDarkMode();
@@ -80,7 +79,7 @@ function App() {
 
         const fetchUsers = async () => {
             try {
-                const res = await axios.get(`${API_URL}/api/auth/all-users`);
+                const res = await axios.get("http://localhost:5000/api/auth/all-users");
 
                 const dynamicList = res.data
                     .filter(u => u._id !== currentUserId)
@@ -111,7 +110,7 @@ function App() {
         );
 
         try {
-            const res = await axios.get(`${API_URL}/api/messages/${currentUserId}/${userId}`);
+            const res = await axios.get(`http://localhost:5000/api/messages/${currentUserId}/${userId}`);
             const formattedMessages = res.data.map(msg => ({
                 id: msg._id,
                 text: msg.text,
@@ -213,7 +212,7 @@ function App() {
             : { email: emailInput.trim().toLowerCase(), password: passwordInput.trim() };
 
         try {
-            const res = await axios.post(`${API_URL}/api/auth/${endpoint}`, payload);
+            const res = await axios.post(`http://localhost:5000/api/auth/${endpoint}`, payload);
             
             // 🚀 STICK TO LOCAL STORAGE
             localStorage.setItem("chatly_user", JSON.stringify(res.data));
@@ -240,12 +239,12 @@ function App() {
     // 🚀 GATEKEEPER INTERFACE (Sign In / Sign Up Card)
    if (!currentUser) {
         return (
-            <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-ink font-sans text-bone">
+            <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-ink px-4 font-sans text-bone">
                 {/* Ambient signal glow — the same "live" motif as the rest of the app */}
                 <div className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-ember/20 blur-[120px]" />
                 <div className="pointer-events-none absolute bottom-[-12rem] right-[-8rem] h-[28rem] w-[28rem] rounded-full bg-teal/10 blur-[120px]" />
 
-                <form onSubmit={handleAuthSubmit} className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-ink-soft/80 p-8 shadow-2xl backdrop-blur-sm animate-rise-in">
+                <form onSubmit={handleAuthSubmit} className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-ink-soft/80 p-6 shadow-2xl backdrop-blur-sm animate-rise-in sm:p-8">
                     <div className="mb-6 flex flex-col items-center text-center">
                         <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-ember text-ink">
                             <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
@@ -330,11 +329,12 @@ function App() {
 
     // Main App View Dashboard (Triggers once logged in)
     return (
-        <div className="flex w-full h-screen bg-parchment text-ink dark:bg-ink dark:text-bone">
+        <div className="flex w-full h-screen overflow-hidden bg-parchment text-ink dark:bg-ink dark:text-bone">
             <Sidebar
                 users={users}
                 activeUserId={activeUserId}
                 onSelectUser={handleSelectUser}
+                isChatActive={Boolean(activeUserId)}
             />
             <ActiveChat
                             onLogout={handleLogout} // Passed logout action down
@@ -349,6 +349,7 @@ function App() {
                 onDeselectUser={() => { setActiveUserId(null) }}
                 onOpenProfile={() => setIsDetailTabOpen(true)}
                 onToggleProfile={() => setIsDetailTabOpen((currentState) => !currentState)}
+                isChatActive={Boolean(activeUserId)}
             />
             <DetailTab
                 activeUser={activeUser}

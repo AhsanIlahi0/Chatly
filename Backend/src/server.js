@@ -18,10 +18,9 @@ const server = http.createServer(app); // Connect Express app into an HTTP serve
 // Inside your Backend file where Socket.io is initialized
 const io = require('socket.io')(server, {
     cors: {
-        origin: "http://localhost:5173", // Your frontend URL
+        origin: ["http://localhost:5173", "https://chatly-gamma-ten.vercel.app"],
         methods: ["GET", "POST"]
     },
-    // 🛠️ ADD THIS LINE (Raises the limit to 20MB, adjust as needed)
     maxHttpBufferSize: 2e7
 });
 app.use('/api/messages', messageRoutes);
@@ -29,7 +28,7 @@ app.use('/api/auth', authRoutes);
 
 // Pass the configured io instance to our modular socket layout script
 chatSocket(io);
-mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/chatly')
+mongoose.connect(process.env.MONGO_URI )
     .then(async () => {
         console.log('📦 Connected to MongoDB successfully!');
 
