@@ -7,6 +7,7 @@ import { useSocket } from './hooks/useSocket';
 import axios from 'axios';
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { API_URL } from "./config";
 
 function App() {
     const [theme, toggleTheme] = useDarkMode();
@@ -79,7 +80,7 @@ function App() {
 
         const fetchUsers = async () => {
             try {
-                const res = await axios.get("http://localhost:5000/api/auth/all-users");
+                const res = await axios.get(`${API_URL}/api/auth/all-users`);
 
                 const dynamicList = res.data
                     .filter(u => u._id !== currentUserId)
@@ -110,7 +111,7 @@ function App() {
         );
 
         try {
-            const res = await axios.get(`http://localhost:5000/api/messages/${currentUserId}/${userId}`);
+            const res = await axios.get(`${API_URL}/api/messages/${currentUserId}/${userId}`);
             const formattedMessages = res.data.map(msg => ({
                 id: msg._id,
                 text: msg.text,
@@ -212,7 +213,7 @@ function App() {
             : { email: emailInput.trim().toLowerCase(), password: passwordInput.trim() };
 
         try {
-            const res = await axios.post(`http://localhost:5000/api/auth/${endpoint}`, payload);
+            const res = await axios.post(`${API_URL}/api/auth/${endpoint}`, payload);
             
             // 🚀 STICK TO LOCAL STORAGE
             localStorage.setItem("chatly_user", JSON.stringify(res.data));

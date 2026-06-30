@@ -1,6 +1,7 @@
 // Frontend/src/components/DiscoverModal.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../../config';
 
 function DiscoverModal({ isOpen, onClose, currentUser, socket }) {
     const [allUsers, setAllUsers] = useState([]);
@@ -11,7 +12,7 @@ function DiscoverModal({ isOpen, onClose, currentUser, socket }) {
     useEffect(() => {
         if (isOpen && currentUserId) {
             setLoading(true);
-            axios.get(`http://localhost:5000/api/auth/discover/${currentUserId}`)
+            axios.get(`${API_URL}/api/auth/discover/${currentUserId}`)
                 .then(res => setAllUsers(res.data))
                 .catch(err => console.error(err))
                 .finally(() => setLoading(false));

@@ -1,6 +1,7 @@
 // Frontend/src/components/Login.jsx
 import { useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../../config';
 
 function Login({ onLoginSuccess }) {
     const [username, setUsername] = useState("");
@@ -12,7 +13,7 @@ function Login({ onLoginSuccess }) {
         setLoading(true);
 
         try {
-            const res = await axios.post("http://localhost:5000/api/auth/login", { username });
+            const res = await axios.post(`${API_URL}/api/auth/login`, { username });
             // Send user data back up to App.jsx
             onLoginSuccess(res.data); 
         } catch (err) {
