@@ -5,8 +5,7 @@ import emmaAvatar from "./images/1avatar.png";
 import { useDarkMode } from './hooks/useDarkMode';
 import { useSocket } from './hooks/useSocket';
 import axios from 'axios';
-import { useMemo, useState, useCallback, useEffect } from "react";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import {API_URL} from './config';
 function App() {
     const [theme, toggleTheme] = useDarkMode();
@@ -42,6 +41,47 @@ function App() {
         [users, activeUserId]
     );
 
+    const applyAvatarUpdate = useCallback((userId, avatarUrl) => {
+        setUsers((currentUsers) =>
+            currentUsers.map((user) => (
+                user.id === userId ? { ...user, avatar: avatarUrl } : user
+            ))
+        );
+
+        setCurrentUser((currentUserState) => (
+            currentUserState?._id === userId
+                ? { ...currentUserState, avatar: avatarUrl }
+                : currentUserState
+        ));
+
+        setConversations((currentConversations) => {
+            let didChange = false;
+            const next = {};
+
+            for (const [partnerId, chatMessages] of Object.entries(currentConversations)) {
+                next[partnerId] = chatMessages;
+            }
+
+            if (didChange) {
+                return next;
+            }
+
+            return currentConversations;
+        });
+
+        try {
+            const savedUser = localStorage.getItem('chatly_user');
+            if (savedUser) {
+                const parsed = JSON.parse(savedUser);
+                if (parsed?._id === userId) {
+                    localStorage.setItem('chatly_user', JSON.stringify({ ...parsed, avatar: avatarUrl }));
+                }
+            }
+        } catch (error) {
+            console.error('Failed to sync avatar in local storage:', error);
+        }
+    }, []);
+
     // Inbound socket message receiver callback
     const handleIncomingLiveMessage = useCallback((msg) => {
         if (!currentUserId) return;
@@ -50,7 +90,9 @@ function App() {
 
         setConversations(prev => {
             const existingChat = prev[partnerId] || [];
-            if (!isReceived && existingChat.some(m => m.id === msg.id)) return prev;
+            if (existingChat.some(m => m.id === msg.id)) {
+                return prev;
+            }
 
             return {
                 ...prev,
@@ -69,9 +111,42 @@ function App() {
         });
     }, [currentUserId]);
 
+    const handleMessageStatusUpdated = useCallback((statusPayload) => {
+        const { messageIds = [], status } = statusPayload || {};
+        const normalizedIds = messageIds.map(String);
+        if (!normalizedIds.length || !status) return;
+
+        setConversations((prev) => {
+            let didChange = false;
+            const next = {};
+
+            for (const [partnerId, chatMessages] of Object.entries(prev)) {
+                next[partnerId] = chatMessages.map((message) => {
+                    if (!normalizedIds.includes(String(message.id))) {
+                        return message;
+                    }
+
+                    didChange = true;
+                    return { ...message, status };
+                });
+            }
+
+            return didChange ? next : prev;
+        });
+    }, []);
+
     // Instantiate socket hook passing current logged-in user ID safely
     // 💡 Note: Ensure your useSocket hook gracefully handles a null/undefined ID!
-    const { emitSendMessage } = useSocket(currentUserId, handleIncomingLiveMessage);
+    const handleAvatarChanged = useCallback((avatarPayload) => {
+        const userId = avatarPayload?.userId || avatarPayload?.id;
+        const avatarUrl = avatarPayload?.avatarUrl;
+
+        if (!userId || !avatarUrl) return;
+
+        applyAvatarUpdate(userId, avatarUrl);
+    }, [applyAvatarUpdate]);
+
+    const { emitSendMessage, emitMarkMessagesRead, emitUpdateAvatar } = useSocket(currentUserId, handleIncomingLiveMessage, undefined, handleAvatarChanged, handleMessageStatusUpdated);
 
     // FETCH DYNAMIC DIRECTORY ONCE LOGGED IN
     useEffect(() => {
@@ -85,8 +160,8 @@ function App() {
                     .filter(u => u._id !== currentUserId)
                     .map(u => ({
                         id: u._id,
-                        name: u.name, 
-                        avatar: u.name ? u.name.substring(0, 2).toUpperCase() : "??",
+                        name: u.name,
+                        avatar: u.avatar,
                         status: u.status || "offline",
                         unread: 0
                     }));
@@ -100,6 +175,25 @@ function App() {
     }, [currentUserId]);
 
     const activeMessages = activeUserId ? conversations[activeUserId] ?? [] : [];
+    const lastReadReceiptSignatureRef = useRef('');
+
+    useEffect(() => {
+        if (!currentUserId || !activeUserId) return;
+
+        const unreadIncoming = activeMessages.filter((message) => !message.sent && message.status !== 'read');
+        const unreadSignature = unreadIncoming.map((message) => message.id).join(',');
+
+        if (!unreadIncoming.length) {
+            lastReadReceiptSignatureRef.current = '';
+            return;
+        }
+
+        if (lastReadReceiptSignatureRef.current === unreadSignature) return;
+
+        lastReadReceiptSignatureRef.current = unreadSignature;
+
+        emitMarkMessagesRead(activeUserId);
+    }, [currentUserId, activeUserId, activeMessages, emitMarkMessagesRead]);
 
     const handleSelectUser = async (userId) => {
         setActiveUserId(userId);
@@ -131,23 +225,6 @@ function App() {
 
         const processAndSendMessage = (text, filePayload = null) => {
             emitSendMessage(activeUserId, text, filePayload);
-            setConversations(prev => {
-                const existingChat = prev[activeUserId] || [];
-                return {
-                    ...prev,
-                    [activeUserId]: [
-                        ...existingChat,
-                        {
-                            id: Date.now().toString(),
-                            text: text,
-                            time: new Date(),
-                            sent: true,
-                            status: 'sent',
-                            file: filePayload
-                        }
-                    ]
-                };
-            });
         };
 
         if (selectedFile) {
@@ -195,6 +272,48 @@ function App() {
             }
         } else {
             processAndSendMessage(messageText, null);
+        }
+    };
+
+    const handleAvatarUpload = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+
+        if (!file || !currentUserId) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please choose an image file for your avatar.');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', 'xgx72g5u');
+            formData.append('resource_type', 'image');
+
+            const response = await fetch('https://api.cloudinary.com/v1_1/dhwdd6d0e/image/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Avatar upload failed');
+            }
+
+            const data = await response.json();
+            const avatarUrl = data.secure_url;
+
+            await axios.put(`${API_URL}/api/auth/avatar`, {
+                userId: currentUserId,
+                avatarUrl
+            });
+
+            applyAvatarUpdate(currentUserId, avatarUrl);
+            emitUpdateAvatar({ userId: currentUserId, avatarUrl });
+        } catch (error) {
+            console.error('Failed to upload avatar:', error);
+            alert(error?.message || 'Avatar upload failed. Try again.');
         }
     };
 
@@ -334,6 +453,8 @@ function App() {
                 users={users}
                 activeUserId={activeUserId}
                 onSelectUser={handleSelectUser}
+                currentUser={currentUser}
+                onAvatarUpload={handleAvatarUpload}
                 isChatActive={Boolean(activeUserId)}
             />
             <ActiveChat

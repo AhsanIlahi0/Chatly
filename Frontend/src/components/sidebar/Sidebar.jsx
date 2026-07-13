@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import SearchInput from './SearchInput';
 import UserItem from './UserItem';
+import Avatar from './avatar';
 
-function Sidebar({ users = [], activeUserId, onSelectUser, onLogout, isChatActive }) {
+function Sidebar({ users = [], activeUserId, onSelectUser, onLogout, isChatActive, currentUser, onAvatarUpload }) {
     const [searchTerm, setSearchTerm] = useState('');
+    const avatarInputRef = useRef(null);
 
     const filteredUsers = users.filter(user =>
         `${user.name} ${user.lastMessage}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -18,11 +20,22 @@ function Sidebar({ users = [], activeUserId, onSelectUser, onLogout, isChatActiv
             <div className="px-5 py-5 border-b border-bone dark:border-ink-line">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                        <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-ink text-ember dark:bg-ember dark:text-ink shrink-0">
-                            <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="currentColor">
-                                <path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4.4 3.6a.6.6 0 0 1-1-.46V5a1 1 0 0 1 1-1Z" />
-                            </svg>
-                        </span>
+                        <button
+                            type="button"
+                            onClick={() => avatarInputRef.current?.click()}
+                            className="relative h-8 w-8 shrink-0 overflow-hidden rounded-xl ring-2 ring-transparent transition-all hover:ring-ember/40"
+                            title="Upload your avatar"
+                            aria-label="Upload your avatar"
+                        >
+                            <Avatar user={currentUser || { name: 'Me', avatar: currentUser?.avatar, status: currentUser?.status }} />
+                        </button>
+                        <input
+                            ref={avatarInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={onAvatarUpload}
+                        />
                         <h1 className="font-display text-xl font-bold tracking-tight text-ink dark:text-bone">Chatly</h1>
                     </div>
 

@@ -80,4 +80,29 @@ router.get('/all-users', async (req, res) => {
     }
 });
 
+router.put('/avatar', async (req, res) => {
+    try {
+        const { userId, avatarUrl } = req.body;
+
+        if (!userId || !avatarUrl) {
+            return res.status(400).json({ error: 'userId and avatarUrl are required' });
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: { avatar: avatarUrl } },
+            { new: true }
+        ).select('-password');
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        return res.status(200).json(updatedUser);
+    } catch (error) {
+        console.error('Failed to update avatar:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 module.exports = router;

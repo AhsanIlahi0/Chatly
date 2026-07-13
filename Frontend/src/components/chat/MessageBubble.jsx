@@ -8,11 +8,34 @@ function MessageBubble({ message }) {
     };
 
     const isImage = (fileType) => fileType && fileType.startsWith('image/');
+    const isAudio = (fileType) => fileType && fileType.startsWith('audio/');
+    const isSentMessage = Boolean(message.sent);
+
+    const TickIcon = ({ double = false, className = '' }) => (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 6L9 17l-5-5" />
+            {double && <path d="M15 6L4 17" />}
+        </svg>
+    );
+
+    const renderStatusIcon = () => {
+        if (!isSentMessage) return null;
+
+        if (message.status === 'read') {
+            return <TickIcon double className="h-3.5 w-3.5 text-[#3b82f6]" />;
+        }
+
+        if (message.status === 'delivered') {
+            return <TickIcon double className="h-3.5 w-3.5 text-white/80 dark:text-bone/80" />;
+        }
+
+        return <TickIcon className="h-3.5 w-3.5 text-white/75 dark:text-bone/75" />;
+    };
 
     return (
-        <div className={`flex animate-rise-in ${message.sent ? 'justify-end' : 'justify-start'} mb-1`}>
+        <div className={`flex animate-rise-in ${isSentMessage ? 'justify-end' : 'justify-start'} mb-1`}>
             <div
-                className={`max-w-[82%] sm:max-w-[65%] md:max-w-[55%] flex flex-col rounded-2xl shadow-sm overflow-hidden ${message.sent
+                className={`max-w-[82%] sm:max-w-[65%] md:max-w-[55%] flex flex-col rounded-2xl shadow-sm overflow-hidden ${isSentMessage
                     ? 'rounded-br-md bg-gradient-to-br from-ember to-[#ff5a35] text-white shadow-ember/10'
                     : 'rounded-bl-md bg-white text-ink ring-1 ring-bone dark:bg-ink-soft dark:text-bone dark:ring-ink-line'
                     }`}
@@ -28,13 +51,28 @@ function MessageBubble({ message }) {
                                     className="w-full h-auto object-cover max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
                                 />
                             </a>
+                        ) : isAudio(message.file.type) ? (
+                            <div className={`p-4 ${isSentMessage ? 'bg-white/10' : 'bg-bone/40 dark:bg-white/5'}`}>
+                                <div className="mb-2 flex items-center gap-3">
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isSentMessage ? 'bg-white/15' : 'bg-white dark:bg-ink'}`}>
+                                        <svg className={`h-5 w-5 ${isSentMessage ? 'text-white' : 'text-ink dark:text-bone'}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm5 9a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V21h2v-2.07A7 7 0 0 0 19 12h-2Z" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <span className="block truncate text-sm font-semibold">Voice note</span>
+                                        <span className="font-mono text-[10px] uppercase tracking-wide opacity-70">Audio message</span>
+                                    </div>
+                                </div>
+                                <audio controls preload="metadata" src={message.file.url} className="w-64 max-w-full" />
+                            </div>
                         ) : (
                             <a
                                 href={message.file.url}
                                 download={message.file.name}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`flex items-center gap-3 p-4 hover:opacity-80 transition-opacity ${message.sent ? 'bg-white/10' : 'bg-bone/40 dark:bg-white/5'
+                                className={`flex items-center gap-3 p-4 hover:opacity-80 transition-opacity ${isSentMessage ? 'bg-white/10' : 'bg-bone/40 dark:bg-white/5'
                                     }`}
                             >
                                 <svg className="w-8 h-8 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -57,9 +95,10 @@ function MessageBubble({ message }) {
                 )}
 
                 {/* 🕒 TIMESTAMP */}
-                <div className={`px-4 pb-2.5 flex items-center justify-end gap-1.5 ${!message.text && message.file ? 'pt-2' : ''} font-mono text-[10px] tracking-wide ${message.sent ? 'text-white/75' : 'text-dusk/80'
+                <div className={`px-4 pb-2.5 flex items-center justify-end gap-1.5 ${!message.text && message.file ? 'pt-2' : ''} font-mono text-[10px] tracking-wide ${isSentMessage ? 'text-white/75' : 'text-dusk/80'
                     }`}>
                     <span>{formatTime(message.time)}</span>
+                    {renderStatusIcon()}
                 </div>
             </div>
         </div>

@@ -5,6 +5,19 @@ const User = require('../models/User');
 const chatSocket = (io) => {
     const onlineUsers = new Map(); // Tracks { userId: socketId }
 
+    const emitMessageStatusUpdate = (messageIds, status, partnerId, recipientId) => {
+        const payload = {
+            messageIds,
+            status,
+            partnerId,
+            recipientId
+        };
+
+        if (partnerId && onlineUsers.has(partnerId)) {
+            io.to(onlineUsers.get(partnerId)).emit('messageStatusUpdated', payload);
+        }
+    };
+
     io.on('connection', (socket) => {
 
         socket.on("registerUser", async (userId) => {
@@ -39,23 +52,60 @@ const chatSocket = (io) => {
                     sender: senderId,
                     receiver: receiverId,
                     text: text,
-                    file: file // 👈 ENSURE THIS LINE IS ACTIVE
+                    file: file,
+                    status: 'sent'
                 });
+
+                const payload = {
+                    id: newMessage._id.toString(),
+                    senderId,
+                    receiverId,
+                    text,
+                    file,
+                    time: newMessage.createdAt,
+                    status: newMessage.status
+                };
+
+                // Send the saved message back to the sender so the UI can keep the database id.
+                io.to(socket.id).emit('receiveMessage', payload);
 
                 // 3. Emit it live to the receiver exactly like before
                 const targetSocketId = onlineUsers.get(receiverId);
                 if (targetSocketId) {
                     io.to(targetSocketId).emit('receiveMessage', {
-                        id: newMessage._id,
-                        senderId,
-                        receiverId,
-                        text,
-                        file, // Send it out to the active listener
-                        time: newMessage.createdAt
+                        ...payload
                     });
+
+                    await Message.updateOne({ _id: newMessage._id }, { status: 'delivered' });
+                    emitMessageStatusUpdate([newMessage._id.toString()], 'delivered', senderId, receiverId);
                 }
             } catch (err) {
                 console.error("Error saving message with file asset:", err);
+            }
+        });
+
+        socket.on('markMessagesRead', async ({ readerId, partnerId }) => {
+            if (!readerId || !partnerId) return;
+
+            try {
+                const unreadMessages = await Message.find({
+                    sender: partnerId,
+                    receiver: readerId,
+                    status: { $ne: 'read' }
+                }).select('_id');
+
+                if (!unreadMessages.length) return;
+
+                const messageIds = unreadMessages.map((message) => message._id.toString());
+
+                await Message.updateMany(
+                    { _id: { $in: messageIds } },
+                    { $set: { status: 'read' } }
+                );
+
+                emitMessageStatusUpdate(messageIds, 'read', partnerId, readerId);
+            } catch (err) {
+                console.error('Error marking messages as read:', err);
             }
         });
         // 3. Handle sudden disconnections

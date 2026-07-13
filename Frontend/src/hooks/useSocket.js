@@ -4,7 +4,7 @@ import { API_URL } from '../config';
 
 const SOCKET_URL =  API_URL;
 
-export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged) => {
+export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged, onMessageStatusUpdated) => {
     const socketRef = useRef(null);
 
     useEffect(() => {
@@ -21,6 +21,10 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onA
             if (onStatusChanged) onStatusChanged(statusPayload);
         });
 
+        socketRef.current.on('messageStatusUpdated', (statusPayload) => {
+            if (onMessageStatusUpdated) onMessageStatusUpdated(statusPayload);
+        });
+
         // 🚀 listen for other users updating their avatars
         socketRef.current.on('userAvatarChanged', (avatarPayload) => {
             if (onAvatarChanged) onAvatarChanged(avatarPayload);
@@ -31,7 +35,7 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onA
                 socketRef.current.disconnect();
             }
         };
-    }, [currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged]);
+    }, [currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged, onMessageStatusUpdated]);
 
     const emitSendMessage = (receiverId, text, file) => {
         if (socketRef.current) {
@@ -40,6 +44,15 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onA
                 receiverId,
                 text,
                 file
+            });
+        }
+    };
+
+    const emitMarkMessagesRead = (partnerId) => {
+        if (socketRef.current) {
+            socketRef.current.emit('markMessagesRead', {
+                readerId: currentUserId,
+                partnerId
             });
         }
     };
@@ -54,5 +67,5 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onA
         }
     };
 
-    return { emitSendMessage, emitUpdateAvatar };
+    return { emitSendMessage, emitUpdateAvatar, emitMarkMessagesRead };
 };

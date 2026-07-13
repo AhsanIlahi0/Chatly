@@ -33,7 +33,7 @@ const MessageSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['sent', 'delivered', 'read'],
-        default: 'read'
+        default: 'sent'
     }
 }, { timestamps: true }); // Automatically injects `createdAt` and `updatedAt` field timestamps
 
