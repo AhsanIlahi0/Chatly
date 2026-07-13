@@ -28,7 +28,7 @@ app.use('/api/auth', authRoutes);
 
 // Pass the configured io instance to our modular socket layout script
 chatSocket(io);
-mongoose.connect(process.env._MONGO_URI )
+mongoose.connect(process.env.MONGO_URI )
     .then(async () => {
         console.log('📦 Connected to MongoDB successfully!');
 
