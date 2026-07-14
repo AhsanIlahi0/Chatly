@@ -25,6 +25,8 @@ function App() {
     }); 
 
     const [users, setUsers] = useState([]); 
+    const usersRef = useRef(users);
+    const activeUserIdRef = useRef(activeUserId);
     
     // AUTHENTICATION FORM STATES
     const [isSignup, setIsSignup] = useState(false); 
@@ -40,6 +42,23 @@ function App() {
         () => users.find((user) => user.id === activeUserId) ?? null,
         [users, activeUserId]
     );
+
+    useEffect(() => {
+        usersRef.current = users;
+    }, [users]);
+
+    useEffect(() => {
+        activeUserIdRef.current = activeUserId;
+    }, [activeUserId]);
+
+    const formatMessageTime = useCallback((value) => {
+        const date = value ? new Date(value) : new Date();
+
+        return new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+        }).format(date);
+    }, []);
 
     const applyAvatarUpdate = useCallback((userId, avatarUrl) => {
         setUsers((currentUsers) =>
@@ -87,6 +106,29 @@ function App() {
         if (!currentUserId) return;
         const isReceived = msg.senderId !== currentUserId;
         const partnerId = isReceived ? msg.senderId : msg.receiverId;
+        const isVoiceNote = Boolean(msg.file?.type?.startsWith('audio/'));
+        const messagePreview = isVoiceNote ? 'VN' : (msg.text?.trim() || msg.file?.name || 'New message');
+        const messageTime = formatMessageTime(msg.time);
+
+        if (isReceived) {
+            const senderName = usersRef.current.find((user) => user.id === partnerId)?.name || 'New message';
+            const shouldNotifyDesktop = typeof window !== 'undefined'
+                && 'Notification' in window
+                && Notification.permission === 'granted'
+                && (document.visibilityState === 'hidden' || activeUserIdRef.current !== partnerId);
+
+            if (shouldNotifyDesktop) {
+                const notification = new Notification(`New message from ${senderName}`, {
+                    body: messagePreview
+                });
+
+                notification.onclick = () => {
+                    window.focus();
+                    setActiveUserId(partnerId);
+                    notification.close();
+                };
+            }
+        }
 
         setConversations(prev => {
             const existingChat = prev[partnerId] || [];
@@ -109,7 +151,19 @@ function App() {
                 ]
             };
         });
-    }, [currentUserId]);
+
+        setUsers((currentUsers) => currentUsers.map((user) => {
+            if (user.id !== partnerId) return user;
+
+            return {
+                ...user,
+                lastMessage: messagePreview,
+                lastMessageType: isVoiceNote ? 'voice-note' : 'text',
+                time: messageTime,
+                unread: isReceived && activeUserIdRef.current !== partnerId ? (user.unread ?? 0) + 1 : (user.unread ?? 0)
+            };
+        }));
+    }, [currentUserId, formatMessageTime]);
 
     const handleMessageStatusUpdated = useCallback((statusPayload) => {
         const { messageIds = [], status } = statusPayload || {};
@@ -135,6 +189,23 @@ function App() {
         });
     }, []);
 
+    const handleUserStatusChanged = useCallback((statusPayload) => {
+        const userId = statusPayload?.userId || statusPayload?.id;
+        const status = statusPayload?.status;
+
+        if (!userId || !status) return;
+
+        setUsers((currentUsers) => currentUsers.map((user) => (
+            user.id === userId ? { ...user, status } : user
+        )));
+
+        setCurrentUser((currentUserState) => (
+            currentUserState?._id === userId
+                ? { ...currentUserState, status }
+                : currentUserState
+        ));
+    }, []);
+
     // Instantiate socket hook passing current logged-in user ID safely
     // 💡 Note: Ensure your useSocket hook gracefully handles a null/undefined ID!
     const handleAvatarChanged = useCallback((avatarPayload) => {
@@ -146,7 +217,7 @@ function App() {
         applyAvatarUpdate(userId, avatarUrl);
     }, [applyAvatarUpdate]);
 
-    const { emitSendMessage, emitMarkMessagesRead, emitUpdateAvatar } = useSocket(currentUserId, handleIncomingLiveMessage, undefined, handleAvatarChanged, handleMessageStatusUpdated);
+    const { emitSendMessage, emitMarkMessagesRead, emitUpdateAvatar } = useSocket(currentUserId, handleIncomingLiveMessage, handleUserStatusChanged, handleAvatarChanged, handleMessageStatusUpdated);
 
     // FETCH DYNAMIC DIRECTORY ONCE LOGGED IN
     useEffect(() => {
@@ -213,6 +284,24 @@ function App() {
                 sent: msg.sender === currentUserId,
                 status: msg.status || 'sent'
             }));
+
+            const latestMessage = formattedMessages.at(-1);
+            const latestPreview = latestMessage?.file?.type?.startsWith('audio/')
+                ? 'VN'
+                : (latestMessage?.text?.trim() || latestMessage?.file?.name || '');
+
+            if (latestMessage) {
+                setUsers((currentUsers) => currentUsers.map((user) => (
+                    user.id === userId
+                        ? {
+                            ...user,
+                            lastMessage: latestPreview,
+                            lastMessageType: latestMessage.file?.type?.startsWith('audio/') ? 'voice-note' : 'text',
+                            time: formatMessageTime(latestMessage.time)
+                        }
+                        : user
+                )));
+            }
 
             setConversations(prev => ({ ...prev, [userId]: formattedMessages }));
         } catch (err) {

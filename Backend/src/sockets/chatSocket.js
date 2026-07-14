@@ -5,6 +5,18 @@ const User = require('../models/User');
 const chatSocket = (io) => {
     const onlineUsers = new Map(); // Tracks { userId: socketId }
 
+    const broadcastUserStatus = async (userId, status) => {
+        if (!userId) return;
+
+        try {
+            await User.findByIdAndUpdate(userId, { status });
+        } catch (err) {
+            console.error('Failed to persist user status:', err);
+        }
+
+        io.emit('userStatusChanged', { userId, status });
+    };
+
     const emitMessageStatusUpdate = (messageIds, status, partnerId, recipientId) => {
         const payload = {
             messageIds,
@@ -23,15 +35,15 @@ const chatSocket = (io) => {
         socket.on("registerUser", async (userId) => {
             onlineUsers.set(userId, socket.id);
 
+            await broadcastUserStatus(userId, 'online');
+
             // 🚀 FETCH USER INFO AND BROADCAST PRESENCE
             try {
                 const userDetails = await User.findById(userId);
                 if (userDetails) {
-                    // Tell every single active socket client that a new user went live
-                    socket.broadcast.emit("userStatusChanged", {
-                        id: userDetails._id,
-                        username: userDetails.username,
-                        unread: 0
+                    socket.emit('userStatusChanged', {
+                        userId: userDetails._id,
+                        status: 'online'
                     });
                 }
             } catch (err) {
@@ -115,7 +127,7 @@ const chatSocket = (io) => {
             for (let [userId, socketId] of onlineUsers.entries()) {
                 if (socketId === socket.id) {
                     onlineUsers.delete(userId);
-                    io.emit('userStatusChanged', { userId, status: 'offline' });
+                    broadcastUserStatus(userId, 'offline');
                     console.log(`❌ User ${userId} disconnected`);
 
                     break;
