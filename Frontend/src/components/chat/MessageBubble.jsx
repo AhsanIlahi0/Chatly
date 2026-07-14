@@ -1,4 +1,6 @@
-function MessageBubble({ message }) {
+import { useEffect, useMemo, useState } from 'react';
+
+function MessageBubble({ message, currentUserId, onDeleteMessage }) {
     const formatTime = (timeData) => {
         if (!timeData) return "";
         if (timeData instanceof Date) {
@@ -10,6 +12,41 @@ function MessageBubble({ message }) {
     const isImage = (fileType) => fileType && fileType.startsWith('image/');
     const isAudio = (fileType) => fileType && fileType.startsWith('audio/');
     const isSentMessage = Boolean(message.sent);
+    const messageTimestamp = useMemo(() => {
+        if (!message.time) return null;
+
+        const parsedTime = message.time instanceof Date ? message.time : new Date(message.time);
+        return Number.isNaN(parsedTime.getTime()) ? null : parsedTime;
+    }, [message.time]);
+
+    const [canDelete, setCanDelete] = useState(() => {
+        if (!isSentMessage || !onDeleteMessage || !currentUserId || !messageTimestamp) return false;
+
+        return Date.now() - messageTimestamp.getTime() < 10 * 60 * 1000;
+    });
+
+    useEffect(() => {
+        if (!isSentMessage || !onDeleteMessage || !currentUserId || !messageTimestamp) {
+            setCanDelete(false);
+            return undefined;
+        }
+
+        const tenMinutes = 10 * 60 * 1000;
+        const elapsed = Date.now() - messageTimestamp.getTime();
+
+        if (elapsed >= tenMinutes) {
+            setCanDelete(false);
+            return undefined;
+        }
+
+        setCanDelete(true);
+
+        const timerId = window.setTimeout(() => {
+            setCanDelete(false);
+        }, tenMinutes - elapsed);
+
+        return () => window.clearTimeout(timerId);
+    }, [currentUserId, isSentMessage, messageTimestamp, onDeleteMessage]);
 
     const TickIcon = ({ double = false, className = '' }) => (
         <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -97,6 +134,23 @@ function MessageBubble({ message }) {
                 {/* 🕒 TIMESTAMP */}
                 <div className={`px-4 pb-2.5 flex items-center justify-end gap-1.5 ${!message.text && message.file ? 'pt-2' : ''} font-mono text-[10px] tracking-wide ${isSentMessage ? 'text-white/75' : 'text-dusk/80'
                     }`}>
+                    {canDelete && (
+                        <button
+                            type="button"
+                            onClick={onDeleteMessage}
+                            className="rounded-full p-1 text-current transition-colors hover:bg-white/10 hover:text-rose-200 dark:hover:bg-white/5"
+                            aria-label="Delete message"
+                            title="Delete message"
+                        >
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4h8v2" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                                <path d="M6 6l1 14h10l1-14" />
+                            </svg>
+                        </button>
+                    )}
                     <span>{formatTime(message.time)}</span>
                     {renderStatusIcon()}
                 </div>

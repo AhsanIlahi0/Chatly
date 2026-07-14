@@ -11,7 +11,14 @@ function App() {
     const [theme, toggleTheme] = useDarkMode();
     const [isDetailTabOpen, setIsDetailTabOpen] = useState(false);
     const [conversations, setConversations] = useState({});
-    const [activeUserId, setActiveUserId] = useState(null);
+    const [activeUserId, setActiveUserId] = useState(() => {
+        try {
+            return localStorage.getItem('chatly_active_user') || null;
+        } catch (error) {
+            console.error('Failed to read active chat from local storage:', error);
+            return null;
+        }
+    });
 
     // 🚀 STICKY INITIALIZATION FROM LOCAL STORAGE
     const [currentUser, setCurrentUser] = useState(() => {
@@ -159,6 +166,7 @@ function App() {
                 ...user,
                 lastMessage: messagePreview,
                 lastMessageType: isVoiceNote ? 'voice-note' : 'text',
+                lastMessageAt: new Date(msg.time).getTime(),
                 time: messageTime,
                 unread: isReceived && activeUserIdRef.current !== partnerId ? (user.unread ?? 0) + 1 : (user.unread ?? 0)
             };
@@ -189,6 +197,116 @@ function App() {
         });
     }, []);
 
+    const syncSidebarConversationSummary = useCallback((partnerId, chatMessages) => {
+        const latestMessage = chatMessages.at(-1);
+        const latestPreview = latestMessage?.file?.type?.startsWith('audio/')
+            ? 'VN'
+            : (latestMessage?.text?.trim() || latestMessage?.file?.name || '');
+
+        setUsers((currentUsers) => currentUsers.map((user) => (
+            user.id === partnerId
+                ? {
+                    ...user,
+                    lastMessage: latestPreview,
+                    lastMessageType: latestMessage?.file?.type?.startsWith('audio/') ? 'voice-note' : 'text',
+                    lastMessageAt: latestMessage ? new Date(latestMessage.time).getTime() : 0,
+                    time: latestMessage ? formatMessageTime(latestMessage.time) : '',
+                    unread: currentUserId && activeUserIdRef.current !== partnerId
+                        ? chatMessages.filter((message) => !message.sent && message.status !== 'read').length
+                        : 0
+                }
+                : user
+        )));
+    }, [currentUserId, formatMessageTime]);
+
+    const fetchConversation = useCallback(async (userId) => {
+        if (!currentUserId || !userId) return;
+
+        try {
+            const res = await axios.get(`${API_URL}/api/messages/${currentUserId}/${userId}`);
+            const formattedMessages = res.data.map(msg => ({
+                id: msg._id,
+                text: msg.text,
+                file: msg.file,
+                time: new Date(msg.createdAt),
+                sent: msg.sender === currentUserId,
+                status: msg.status || 'sent'
+            }));
+
+            const latestMessage = formattedMessages.at(-1);
+            const latestPreview = latestMessage?.file?.type?.startsWith('audio/')
+                ? 'VN'
+                : (latestMessage?.text?.trim() || latestMessage?.file?.name || '');
+
+            if (latestMessage) {
+                setUsers((currentUsers) => currentUsers.map((user) => (
+                    user.id === userId
+                        ? {
+                            ...user,
+                            lastMessage: latestPreview,
+                            lastMessageType: latestMessage.file?.type?.startsWith('audio/') ? 'voice-note' : 'text',
+                            lastMessageAt: latestMessage ? new Date(latestMessage.time).getTime() : 0,
+                            time: formatMessageTime(latestMessage.time)
+                        }
+                        : user
+                )));
+            }
+
+            setConversations(prev => ({ ...prev, [userId]: formattedMessages }));
+        } catch (err) {
+            console.error('Failed to pull message history:', err);
+        }
+    }, [currentUserId, formatMessageTime]);
+
+    const handleDeleteMessage = useCallback(async (messageId, partnerId) => {
+        if (!currentUserId || !messageId || !partnerId) return;
+
+        try {
+            await axios.delete(`${API_URL}/api/messages/${messageId}`, {
+                data: { requesterId: currentUserId }
+            });
+
+            setConversations((prev) => {
+                const existingChat = prev[partnerId] || [];
+                const nextChat = existingChat.filter((message) => String(message.id) !== String(messageId));
+                const nextConversations = {
+                    ...prev,
+                    [partnerId]: nextChat
+                };
+
+                syncSidebarConversationSummary(partnerId, nextChat);
+
+                return nextConversations;
+            });
+        } catch (error) {
+            console.error('Failed to delete message:', error);
+            alert(error?.response?.data?.error || 'Could not delete this message.');
+        }
+    }, [currentUserId, syncSidebarConversationSummary]);
+
+    const handleMessageDeleted = useCallback((deletedPayload) => {
+        const messageId = deletedPayload?.messageId;
+        const senderId = deletedPayload?.senderId;
+        const receiverId = deletedPayload?.receiverId;
+
+        if (!messageId || !senderId || !receiverId || !currentUserId) return;
+
+        const partnerId = senderId === currentUserId ? receiverId : senderId;
+
+        setConversations((prev) => {
+            const existingChat = prev[partnerId] || [];
+            const nextChat = existingChat.filter((message) => String(message.id) !== String(messageId));
+            const nextConversations = {
+                ...prev,
+                [partnerId]: nextChat
+            };
+
+            syncSidebarConversationSummary(partnerId, nextChat);
+
+            return nextConversations;
+        });
+    }, [currentUserId, syncSidebarConversationSummary]);
+
     const handleUserStatusChanged = useCallback((statusPayload) => {
         const userId = statusPayload?.userId || statusPayload?.id;
         const status = statusPayload?.status;
@@ -206,6 +324,32 @@ function App() {
         ));
     }, []);
 
+    const handleNewUserAdded = useCallback((payload) => {
+        const newUser = payload?.user;
+        if (!newUser?.id || newUser.id === currentUserId) return;
+
+        setUsers((currentUsers) => {
+            if (currentUsers.some((user) => user.id === newUser.id)) {
+                return currentUsers;
+            }
+
+            return [
+                {
+                    id: newUser.id,
+                    name: newUser.name,
+                    avatar: newUser.avatar,
+                    status: newUser.status || 'offline',
+                    unread: 0,
+                    lastMessageAt: 0,
+                    time: '',
+                    lastMessage: '',
+                    lastMessageType: 'text'
+                },
+                ...currentUsers
+            ];
+        });
+    }, [currentUserId]);
+
     // Instantiate socket hook passing current logged-in user ID safely
     // 💡 Note: Ensure your useSocket hook gracefully handles a null/undefined ID!
     const handleAvatarChanged = useCallback((avatarPayload) => {
@@ -217,7 +361,7 @@ function App() {
         applyAvatarUpdate(userId, avatarUrl);
     }, [applyAvatarUpdate]);
 
-    const { emitSendMessage, emitMarkMessagesRead, emitUpdateAvatar } = useSocket(currentUserId, handleIncomingLiveMessage, handleUserStatusChanged, handleAvatarChanged, handleMessageStatusUpdated);
+    const { emitSendMessage, emitMarkMessagesRead, emitUpdateAvatar } = useSocket(currentUserId, handleIncomingLiveMessage, handleUserStatusChanged, handleAvatarChanged, handleMessageStatusUpdated, handleNewUserAdded, handleMessageDeleted);
 
     // FETCH DYNAMIC DIRECTORY ONCE LOGGED IN
     useEffect(() => {
@@ -234,9 +378,16 @@ function App() {
                         name: u.name,
                         avatar: u.avatar,
                         status: u.status || "offline",
+                        lastMessageAt: 0,
                         unread: 0
                     }));
                 setUsers(dynamicList);
+
+                const storedActiveUserId = localStorage.getItem('chatly_active_user');
+                if (storedActiveUserId && dynamicList.some((user) => user.id === storedActiveUserId)) {
+                    setActiveUserId(storedActiveUserId);
+                    await fetchConversation(storedActiveUserId);
+                }
             } catch (err) {
                 console.error("Error pulling live user list directory:", err);
             }
@@ -268,45 +419,18 @@ function App() {
 
     const handleSelectUser = async (userId) => {
         setActiveUserId(userId);
+        try {
+            localStorage.setItem('chatly_active_user', userId);
+        } catch (error) {
+            console.error('Failed to persist active chat:', error);
+        }
         setUsers((currentUsers) =>
             currentUsers.map((user) =>
                 user.id === userId ? { ...user, unread: 0 } : user
             )
         );
 
-        try {
-            const res = await axios.get(`${API_URL}/api/messages/${currentUserId}/${userId}`);
-            const formattedMessages = res.data.map(msg => ({
-                id: msg._id,
-                text: msg.text,
-                file: msg.file,
-                time: new Date(msg.createdAt),
-                sent: msg.sender === currentUserId,
-                status: msg.status || 'sent'
-            }));
-
-            const latestMessage = formattedMessages.at(-1);
-            const latestPreview = latestMessage?.file?.type?.startsWith('audio/')
-                ? 'VN'
-                : (latestMessage?.text?.trim() || latestMessage?.file?.name || '');
-
-            if (latestMessage) {
-                setUsers((currentUsers) => currentUsers.map((user) => (
-                    user.id === userId
-                        ? {
-                            ...user,
-                            lastMessage: latestPreview,
-                            lastMessageType: latestMessage.file?.type?.startsWith('audio/') ? 'voice-note' : 'text',
-                            time: formatMessageTime(latestMessage.time)
-                        }
-                        : user
-                )));
-            }
-
-            setConversations(prev => ({ ...prev, [userId]: formattedMessages }));
-        } catch (err) {
-            console.error("Failed to pull message history:", err);
-        }
+        await fetchConversation(userId);
     };
 
     const handleSendMessage = async (messageText, selectedFile) => {
@@ -440,6 +564,7 @@ function App() {
     // LOGOUT ACTION UTILITY
     const handleLogout = () => {
         localStorage.removeItem("chatly_user");
+        localStorage.removeItem('chatly_active_user');
         setCurrentUser(null);
         setActiveUserId(null);
     };
@@ -554,12 +679,14 @@ function App() {
                 activeUser={activeUser}
                 messages={activeMessages}
                 onSendMessage={handleSendMessage}
+                onDeleteMessage={handleDeleteMessage}
                 isDetailTabOpen={isDetailTabOpen}
                 onCloseProfile={() => setIsDetailTabOpen(false)}
                 onDeselectUser={() => { setActiveUserId(null) }}
                 onOpenProfile={() => setIsDetailTabOpen(true)}
                 onToggleProfile={() => setIsDetailTabOpen((currentState) => !currentState)}
                 isChatActive={Boolean(activeUserId)}
+                currentUserId={currentUserId}
             />
             <DetailTab
                 activeUser={activeUser}

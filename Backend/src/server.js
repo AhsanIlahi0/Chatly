@@ -23,6 +23,7 @@ const io = require('socket.io')(server, {
     },
     maxHttpBufferSize: 2e7
 });
+app.set('io', io);
 app.use('/api/messages', messageRoutes);
 app.use('/api/auth', authRoutes);
 

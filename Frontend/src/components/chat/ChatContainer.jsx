@@ -3,7 +3,7 @@ import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import Avatar from '../sidebar/avatar';
 
-function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, isDetailTabOpen, onSendMessage, onDeselectUser, showProfile, onCloseProfile, onOpenProfile, onToggleProfile }) {
+function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, isDetailTabOpen, onSendMessage, onDeleteMessage, onDeselectUser, showProfile, onCloseProfile, onOpenProfile, onToggleProfile, currentUserId }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef(null);
     const messagesEndRef = useRef(null);
@@ -249,8 +249,13 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                 <div className="mx-auto flex max-w-3xl flex-col gap-3">
                     <div className="self-center rounded-full bg-white/80 px-4 py-1 font-mono text-[10px] uppercase tracking-widest text-dusk shadow-sm ring-1 ring-bone dark:bg-ink-soft/80 dark:ring-ink-line">Today</div>
 
-                    {panelMessages.map((message, index) => (
-                        <MessageBubble key={index} message={message} />
+                    {panelMessages.map((message) => (
+                        <MessageBubble
+                            key={message.id}
+                            message={message}
+                            currentUserId={currentUserId}
+                            onDeleteMessage={() => onDeleteMessage?.(message.id, user.id)}
+                        />
                     ))}
 
                     {attachScrollTarget && <div ref={messagesEndRef} />}

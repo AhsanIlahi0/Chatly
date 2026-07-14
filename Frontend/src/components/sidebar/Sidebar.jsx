@@ -7,9 +7,16 @@ function Sidebar({ users = [], activeUserId, onSelectUser, onLogout, isChatActiv
     const [searchTerm, setSearchTerm] = useState('');
     const avatarInputRef = useRef(null);
 
-    const filteredUsers = users.filter(user =>
-        `${user.name} ${user.lastMessage}`.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredUsers = users
+        .filter(user =>
+            `${user.name} ${user.lastMessage}`.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((leftUser, rightUser) => {
+            const leftTime = Number(leftUser.lastMessageAt || 0);
+            const rightTime = Number(rightUser.lastMessageAt || 0);
+
+            return rightTime - leftTime;
+        });
 
     const onlineCount = users.filter(u => u.status === 'online').length;
 

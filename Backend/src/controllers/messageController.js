@@ -18,3 +18,38 @@ exports.getChatHistory = async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 };
+
+exports.deleteMessage = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { requesterId } = req.body;
+
+        if (!messageId || !requesterId) {
+            return res.status(400).json({ error: 'messageId and requesterId are required' });
+        }
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+
+        if (String(message.sender) !== String(requesterId)) {
+            return res.status(403).json({ error: 'You can only delete your own messages' });
+        }
+
+        await Message.deleteOne({ _id: messageId });
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('messageDeleted', {
+                messageId: messageId.toString(),
+                senderId: message.sender.toString(),
+                receiverId: message.receiver.toString()
+            });
+        }
+
+        return res.status(200).json({ success: true, messageId: messageId.toString() });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+};

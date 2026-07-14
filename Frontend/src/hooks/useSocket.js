@@ -4,7 +4,7 @@ import { API_URL } from '../config';
 
 const SOCKET_URL =  API_URL;
 
-export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged, onMessageStatusUpdated) => {
+export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged, onMessageStatusUpdated, onNewUserAdded, onMessageDeleted) => {
     const socketRef = useRef(null);
 
     useEffect(() => {
@@ -25,6 +25,14 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onA
             if (onMessageStatusUpdated) onMessageStatusUpdated(statusPayload);
         });
 
+        socketRef.current.on('newUserAdded', (newUserPayload) => {
+            if (onNewUserAdded) onNewUserAdded(newUserPayload);
+        });
+
+        socketRef.current.on('messageDeleted', (deletedPayload) => {
+            if (onMessageDeleted) onMessageDeleted(deletedPayload);
+        });
+
         // 🚀 listen for other users updating their avatars
         socketRef.current.on('userAvatarChanged', (avatarPayload) => {
             if (onAvatarChanged) onAvatarChanged(avatarPayload);
@@ -35,7 +43,7 @@ export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onA
                 socketRef.current.disconnect();
             }
         };
-    }, [currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged, onMessageStatusUpdated]);
+    }, [currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged, onMessageStatusUpdated, onNewUserAdded, onMessageDeleted]);
 
     const emitSendMessage = (receiverId, text, file) => {
         if (socketRef.current) {

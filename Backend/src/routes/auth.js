@@ -58,6 +58,19 @@ router.post('/signup', async (req, res) => {
             password
         });
 
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('newUserAdded', {
+                user: {
+                    id: newUser._id,
+                    name: newUser.name,
+                    avatar: newUser.avatar,
+                    status: newUser.status,
+                    unread: 0
+                }
+            });
+        }
+
         // Convert to plain object to strip out sensitive data safely
         const userResponse = newUser.toObject();
         delete userResponse.password;
