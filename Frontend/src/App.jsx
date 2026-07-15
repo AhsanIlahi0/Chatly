@@ -6,7 +6,8 @@ import { useDarkMode } from './hooks/useDarkMode';
 import { useSocket } from './hooks/useSocket';
 import axios from 'axios';
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import {API_URL} from './config';
+import { API_URL } from './config';
+
 function App() {
     const [theme, toggleTheme] = useDarkMode();
     const [isDetailTabOpen, setIsDetailTabOpen] = useState(false);
@@ -42,6 +43,14 @@ function App() {
     const [passwordInput, setPasswordInput] = useState("");
     const [authLoading, setAuthLoading] = useState(false);
 
+    // 🚀 NEW OTP VERIFICATION STATES
+    const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+    const [otpInput, setOtpInput] = useState("");
+    const [otpError, setOtpError] = useState("");
+
+    // 🚀 GOOGLE BUTTON TARGET REFERENCE
+    const googleButtonRef = useRef(null);
+
     // Grab current logged-in user ID dynamically
     const currentUserId = useMemo(() => currentUser?._id || null, [currentUser]);
 
@@ -57,6 +66,71 @@ function App() {
     useEffect(() => {
         activeUserIdRef.current = activeUserId;
     }, [activeUserId]);
+
+    // 🚀 INITIALIZE GOOGLE AUTH ONCE ON LOAD (Removed isSignup dependency to prevent re-mount errors)
+    useEffect(() => {
+        if (currentUser) return;
+
+        const initializeGoogleSignIn = () => {
+            if (window.google) {
+                window.google.accounts.id.initialize({
+                    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+                    callback: handleGoogleLoginSuccess,
+                });
+
+                if (googleButtonRef.current) {
+                    window.google.accounts.id.renderButton(
+                        googleButtonRef.current,
+                        { 
+                            theme: "filled_blue", 
+                            size: "large", 
+                            width: "320", 
+                            text: "continue_with",
+                            shape: "pill"
+                        }
+                    );
+                }
+            }
+        };
+
+        if (window.google) {
+            initializeGoogleSignIn();
+        } else {
+            const checkInterval = setInterval(() => {
+                if (window.google) {
+                    initializeGoogleSignIn();
+                    clearInterval(checkInterval);
+                }
+            }, 100);
+            return () => clearInterval(checkInterval);
+        }
+    }, [currentUser]); 
+
+    // 🚀 EXCHANGE GOOGLE TOKEN WITH THE BACKEND API
+    const handleGoogleLoginSuccess = async (response) => {
+        setAuthLoading(true);
+        try {
+            const idToken = response.credential;
+            
+            const res = await axios.post(`${API_URL}/api/auth/google-login`, {
+                idToken
+            });
+
+            // Persist returned user profile data
+            localStorage.setItem("chatly_user", JSON.stringify(res.data));
+            setCurrentUser(res.data);
+            
+            // Clean out local credentials
+            setNameInput("");
+            setEmailInput("");
+            setPasswordInput("");
+        } catch (err) {
+            console.error("Google Auth execution failed:", err);
+            alert("Google Sign-In failed. Please try again.");
+        } finally {
+            setAuthLoading(false);
+        }
+    };
 
     const formatMessageTime = useCallback((value) => {
         const date = value ? new Date(value) : new Date();
@@ -350,8 +424,6 @@ function App() {
         });
     }, [currentUserId]);
 
-    // Instantiate socket hook passing current logged-in user ID safely
-    // 💡 Note: Ensure your useSocket hook gracefully handles a null/undefined ID!
     const handleAvatarChanged = useCallback((avatarPayload) => {
         const userId = avatarPayload?.userId || avatarPayload?.id;
         const avatarUrl = avatarPayload?.avatarUrl;
@@ -546,16 +618,56 @@ function App() {
         try {
             const res = await axios.post(`${API_URL}/api/auth/${endpoint}`, payload);
             
-            // 🚀 STICK TO LOCAL STORAGE
-            localStorage.setItem("chatly_user", JSON.stringify(res.data));
-            setCurrentUser(res.data);
-
-            setNameInput("");
-            setEmailInput("");
-            setPasswordInput("");
+            if (isSignup) {
+                // 🚀 OTP generated & sent on backend, hold screen flow for verification input
+                setIsVerifyingOtp(true);
+                alert("A 6-digit OTP code has been sent to your email address!");
+            } else {
+                // Regular login session success
+                localStorage.setItem("chatly_user", JSON.stringify(res.data));
+                setCurrentUser(res.data);
+                setNameInput("");
+                setEmailInput("");
+                setPasswordInput("");
+            }
         } catch (err) {
             console.error("Authentication action failed:", err);
             alert(err.response?.data?.error || "Authentication dropped. Try again.");
+        } finally {
+            setAuthLoading(false);
+        }
+    };
+
+    // 🚀 NEW OTP VERIFICATION HANDLER
+    const handleVerifyOtp = async (e) => {
+        e.preventDefault();
+        if (!otpInput.trim() || otpInput.length !== 6) {
+            setOtpError("Please enter a valid 6-digit code.");
+            return;
+        }
+
+        setAuthLoading(true);
+        setOtpError("");
+
+        try {
+            const res = await axios.post(`${API_URL}/api/auth/verify-otp`, {
+                email: emailInput.trim().toLowerCase(),
+                otp: otpInput.trim()
+            });
+
+            // Write verified registration dataset profile
+            localStorage.setItem("chatly_user", JSON.stringify(res.data));
+            setCurrentUser(res.data);
+            
+            // Clean out cached input controllers
+            setNameInput("");
+            setEmailInput("");
+            setPasswordInput("");
+            setOtpInput("");
+            setIsVerifyingOtp(false);
+        } catch (err) {
+            console.error("OTP verification failed:", err);
+            setOtpError(err.response?.data?.error || "Invalid OTP code. Please try again.");
         } finally {
             setAuthLoading(false);
         }
@@ -569,93 +681,164 @@ function App() {
         setActiveUserId(null);
     };
 
-    // 🚀 GATEKEEPER INTERFACE (Sign In / Sign Up Card)
-   if (!currentUser) {
+    // 🚀 GATEKEEPER INTERFACE (Sign In / Sign Up Card with Google integration)
+    if (!currentUser) {
         return (
             <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-ink px-4 font-sans text-bone">
-                {/* Ambient signal glow — the same "live" motif as the rest of the app */}
+                {/* Ambient signal glow */}
                 <div className="pointer-events-none absolute -top-40 left-1/2 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-ember/20 blur-[120px]" />
                 <div className="pointer-events-none absolute bottom-[-12rem] right-[-8rem] h-[28rem] w-[28rem] rounded-full bg-teal/10 blur-[120px]" />
 
-                <form onSubmit={handleAuthSubmit} className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-ink-soft/80 p-6 shadow-2xl backdrop-blur-sm animate-rise-in sm:p-8">
-                    <div className="mb-6 flex flex-col items-center text-center">
-                        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-ember text-ink">
-                            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-                                <path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4.4 3.6a.6.6 0 0 1-1-.46V5a1 1 0 0 1 1-1Z" />
-                            </svg>
-                        </span>
-                        <h2 className="font-display text-2xl font-bold tracking-tight text-bone">
-                            {isSignup ? "Create an Account" : "Welcome back"}
-                        </h2>
-                        <p className="mt-1.5 text-xs text-dusk">
-                            {isSignup ? "Sign up to start messaging in real-time" : "Sign in to catch up on conversations"}
-                        </p>
-                    </div>
+                <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-ink-soft/80 p-6 shadow-2xl backdrop-blur-sm animate-rise-in sm:p-8">
+                    
+                    {/* 🚀 CONDITIONAL OTP VERIFICATION MODULE */}
+                    {isVerifyingOtp ? (
+                        <form onSubmit={handleVerifyOtp}>
+                            <div className="mb-6 flex flex-col items-center text-center">
+                                <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-500 text-ink">
+                                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                    </svg>
+                                </span>
+                                <h2 className="font-display text-2xl font-bold tracking-tight text-bone">
+                                    Verify your Email
+                                </h2>
+                                <p className="mt-1.5 text-xs text-dusk">
+                                    We sent a 6-digit confirmation code to <span className="text-ember font-semibold">{emailInput}</span>
+                                </p>
+                            </div>
 
-                    {/* Sign in / Sign up segmented switch */}
-                    <div className="mb-6 flex rounded-xl bg-white/5 p-1">
-                        <button
-                            type="button"
-                            onClick={() => { setIsSignup(false); setNameInput(""); }}
-                            className={`flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-wide transition-all ${!isSignup ? 'bg-ember text-ink shadow-sm' : 'text-dusk hover:text-bone'}`}
-                        >
-                            Sign In
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setIsSignup(true); setNameInput(""); }}
-                            className={`flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-wide transition-all ${isSignup ? 'bg-ember text-ink shadow-sm' : 'text-dusk hover:text-bone'}`}
-                        >
-                            Sign Up
-                        </button>
-                    </div>
+                            <div className="mb-6">
+                                <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">
+                                    Enter 6-Digit Code
+                                </label>
+                                <input
+                                    type="text"
+                                    maxLength="6"
+                                    value={otpInput}
+                                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))} // Digits only
+                                    placeholder="123456"
+                                    className="w-full text-center tracking-[0.75em] font-mono text-lg rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-bone placeholder-dusk/30 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
+                                    required
+                                />
+                                {otpError && (
+                                    <p className="mt-2 text-xs text-red-500 text-center font-semibold animate-pulse">
+                                        {otpError}
+                                    </p>
+                                )}
+                            </div>
 
-                    {isSignup && (
-                        <div className="mb-4">
-                            <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Display Name</label>
-                            <input
-                                type="text"
-                                value={nameInput}
-                                onChange={(e) => setNameInput(e.target.value)}
-                                placeholder="Alice Smith"
-                                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
-                                required
-                            />
-                        </div>
+                            <button
+                                type="submit"
+                                disabled={authLoading}
+                                className="w-full rounded-xl bg-ember py-3 text-sm font-bold text-ink transition-colors hover:bg-ember-soft disabled:bg-white/10 disabled:text-dusk shadow-lg shadow-ember/20"
+                            >
+                                {authLoading ? "Verifying..." : "Verify & Create Account"}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => { setIsVerifyingOtp(false); setOtpInput(""); setOtpError(""); }}
+                                className="mt-4 w-full text-center text-xs text-dusk hover:text-bone transition-all"
+                            >
+                                ← Back to Sign Up
+                            </button>
+                        </form>
+                    ) : (
+                        /* STANDARD LOGIN & SIGNUP SELECTION PANEL */
+                        <form onSubmit={handleAuthSubmit}>
+                            <div className="mb-6 flex flex-col items-center text-center">
+                                <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-ember text-ink">
+                                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+                                        <path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-4.4 3.6a.6.6 0 0 1-1-.46V5a1 1 0 0 1 1-1Z" />
+                                    </svg>
+                                </span>
+                                <h2 className="font-display text-2xl font-bold tracking-tight text-bone">
+                                    {isSignup ? "Create an Account" : "Welcome back"}
+                                </h2>
+                                <p className="mt-1.5 text-xs text-dusk">
+                                    {isSignup ? "Sign up to start messaging in real-time" : "Sign in to catch up on conversations"}
+                                </p>
+                            </div>
+
+                            {/* Sign in / Sign up segmented switch */}
+                            <div className="mb-6 flex rounded-xl bg-white/5 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsSignup(false); setNameInput(""); }}
+                                    className={`flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-wide transition-all ${!isSignup ? 'bg-ember text-ink shadow-sm' : 'text-dusk hover:text-bone'}`}
+                                >
+                                    Sign In
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsSignup(true); setNameInput(""); }}
+                                    className={`flex-1 rounded-lg py-2 text-xs font-semibold uppercase tracking-wide transition-all ${isSignup ? 'bg-ember text-ink shadow-sm' : 'text-dusk hover:text-bone'}`}
+                                >
+                                    Sign Up
+                                </button>
+                            </div>
+
+                            {isSignup && (
+                                <div className="mb-4">
+                                    <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Display Name</label>
+                                    <input
+                                        type="text"
+                                        value={nameInput}
+                                        onChange={(e) => setNameInput(e.target.value)}
+                                        placeholder="Alice Smith"
+                                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
+                                        required
+                                    />
+                                </div>
+                            )}
+
+                            <div className="mb-4">
+                                <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Email Address</label>
+                                <input
+                                    type="email"
+                                    value={emailInput}
+                                    onChange={(e) => setEmailInput(e.target.value)}
+                                    placeholder="you@example.com"
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
+                                    required
+                                />
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    value={passwordInput}
+                                    onChange={(e) => setPasswordInput(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={authLoading}
+                                className="w-full rounded-xl bg-ember py-3 text-sm font-bold text-ink transition-colors hover:bg-ember-soft disabled:bg-white/10 disabled:text-dusk shadow-lg shadow-ember/20"
+                            >
+                                {authLoading ? "Processing..." : isSignup ? "Create Free Account" : "Enter Chatroom"}
+                            </button>
+                        </form>
                     )}
 
-                    <div className="mb-4">
-                        <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Email Address</label>
-                        <input
-                            type="email"
-                            value={emailInput}
-                            onChange={(e) => setEmailInput(e.target.value)}
-                            placeholder="you@example.com"
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
-                            required
-                        />
+                    {/* Styled Visual Divider (Always mounted, visually hidden during OTP verification) */}
+                    <div className={`relative py-5 items-center w-full ${isVerifyingOtp ? 'hidden' : 'flex'}`}>
+                        <div className="flex-grow border-t border-white/10"></div>
+                        <span className="flex-shrink mx-4 text-xs text-dusk/60 uppercase tracking-widest font-semibold font-mono text-[10px]">Or</span>
+                        <div className="flex-grow border-t border-white/10"></div>
                     </div>
 
-                    <div className="mb-6">
-                        <label className="block font-mono text-[10px] font-semibold uppercase tracking-widest text-dusk mb-2">Password</label>
-                        <input
-                            type="password"
-                            value={passwordInput}
-                            onChange={(e) => setPasswordInput(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-bone placeholder-dusk/60 focus:outline-none focus:border-ember focus:bg-white/[0.07] transition-all"
-                            required
-                        />
+                    {/* 🚀 GOOGLE LOGIN MOUNT TARGET (Always mounted, visually hidden during OTP verification) */}
+                    <div className={`justify-center w-full min-h-[44px] ${isVerifyingOtp ? 'hidden' : 'flex'}`}>
+                        <div ref={googleButtonRef} className="w-full max-w-[320px]"></div>
                     </div>
-
-                    <button
-                        type="submit"
-                        disabled={authLoading}
-                        className="w-full rounded-xl bg-ember py-3 text-sm font-bold text-ink transition-colors hover:bg-ember-soft disabled:bg-white/10 disabled:text-dusk shadow-lg shadow-ember/20"
-                    >
-                        {authLoading ? "Processing..." : isSignup ? "Create Free Account" : "Enter Chatroom"}
-                    </button>
-                </form>
+                </div>
             </div>
         );
     }
@@ -672,8 +855,7 @@ function App() {
                 isChatActive={Boolean(activeUserId)}
             />
             <ActiveChat
-                            onLogout={handleLogout} // Passed logout action down
-
+                onLogout={handleLogout} 
                 theme={theme}
                 setTheme={toggleTheme}
                 activeUser={activeUser}
@@ -682,18 +864,7 @@ function App() {
                 onDeleteMessage={handleDeleteMessage}
                 isDetailTabOpen={isDetailTabOpen}
                 onCloseProfile={() => setIsDetailTabOpen(false)}
-                onDeselectUser={() => { setActiveUserId(null) }}
-                onOpenProfile={() => setIsDetailTabOpen(true)}
-                onToggleProfile={() => setIsDetailTabOpen((currentState) => !currentState)}
-                isChatActive={Boolean(activeUserId)}
-                currentUserId={currentUserId}
-            />
-            <DetailTab
-                activeUser={activeUser}
-                isOpen={isDetailTabOpen}
-                onClose={() => setIsDetailTabOpen(false)}
-                theme={theme}
-                setTheme={toggleTheme}
+                onDeselectUser={() => setActiveUserId(null)}
             />
         </div>
     );
