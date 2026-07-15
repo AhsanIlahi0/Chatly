@@ -145,30 +145,31 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
 
     const renderChatPanel = (user, panelMessages, panelStateClassName, attachScrollTarget = true) => (
         <div className={`absolute inset-0 flex h-full min-h-0 flex-col bg-parchment transition-all duration-500 ease-out dark:bg-ink ${panelStateClassName}`}>
-            <div className="relative z-20 flex items-center justify-between gap-2 border-b border-bone bg-white/80 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-ink-line dark:bg-ink-soft/40 sm:gap-4 sm:px-6 sm:py-4">                <div className="flex min-w-0 items-center gap-1 sm:gap-3">
-                <button
-                    type="button"
-                    onClick={onDeselectUser}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-dusk transition-colors hover:bg-bone hover:text-ink dark:hover:bg-white/10 dark:hover:text-bone md:hidden"
-                    aria-label="Back to conversations"
-                >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                </button>
+            <div className="relative z-20 flex items-center justify-between gap-2 border-b border-bone bg-white/80 px-3 py-3 shadow-sm backdrop-blur-sm dark:border-ink-line dark:bg-ink-soft/40 sm:gap-4 sm:px-6 sm:py-4">
+                <div className="flex min-w-0 items-center gap-1 sm:gap-3">
+                    <button
+                        type="button"
+                        onClick={onDeselectUser}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-dusk transition-colors hover:bg-bone hover:text-ink dark:hover:bg-white/10 dark:hover:text-bone md:hidden"
+                        aria-label="Back to conversations"
+                    >
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M15 18l-6-6 6-6" />
+                        </svg>
+                    </button>
 
-                <div className="group flex min-w-0 cursor-pointer items-center gap-3 select-none">
-                    <div className="h-11 w-11 shrink-0">
-                        <Avatar user={user} />
-                    </div>
-                    <div className="min-w-0">
-                        <h2 className="truncate font-display text-base font-semibold text-ink group-hover:text-ember transition-colors dark:text-bone">{user?.name}</h2>
-                        <p className={`font-mono text-[11px] uppercase tracking-wide ${user?.status === 'online' ? 'text-teal' : 'text-dusk'}`}>
-                            {user?.status === 'online' ? 'online' : user?.status === 'away' ? 'away' : 'offline'}
-                        </p>
+                    <div className="group flex min-w-0 cursor-pointer items-center gap-3 select-none">
+                        <div className="h-11 w-11 shrink-0">
+                            <Avatar user={user} />
+                        </div>
+                        <div className="min-w-0">
+                            <h2 className="truncate font-display text-base font-semibold text-ink group-hover:text-ember transition-colors dark:text-bone">{user?.name}</h2>
+                            <p className={`font-mono text-[11px] uppercase tracking-wide ${user?.status === 'online' ? 'text-teal' : 'text-dusk'}`}>
+                                {user?.status === 'online' ? 'online' : user?.status === 'away' ? 'away' : 'offline'}
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
                 <div className="flex shrink-0 items-center gap-1 text-dusk sm:gap-1.5">
                     <button
@@ -267,7 +268,8 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
     );
 
     return (
-        <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
+        <div className="relative flex h-full min-h-0 w-full flex-1 overflow-hidden">
+            {/* Empty State / Welcome Screen */}
             <div
                 className={`absolute inset-0 flex items-center justify-center px-6 text-center transition-all duration-500 ease-out ${viewState.currentUser
                     ? 'pointer-events-none translate-y-4 scale-[0.98] opacity-0'
@@ -293,27 +295,30 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                 </div>
             </div>
 
-            {viewState.previousUser && viewState.currentUser ? (
-                <>
-                    {renderChatPanel(
-                        viewState.previousUser,
-                        viewState.previousMessages,
-                        'pointer-events-none translate-x-6 scale-[0.98] opacity-0',
-                        false,
-                    )}
-                    {renderChatPanel(
+            {/* 🛠️ Responsive wrapper to securely contain and render the absolute slides on mobile */}
+            <div className="relative flex h-full w-full flex-1 min-h-0">
+                {viewState.previousUser && viewState.currentUser ? (
+                    <>
+                        {renderChatPanel(
+                            viewState.previousUser,
+                            viewState.previousMessages,
+                            'pointer-events-none translate-x-6 scale-[0.98] opacity-0',
+                            false,
+                        )}
+                        {renderChatPanel(
+                            viewState.currentUser,
+                            viewState.currentMessages,
+                            'translate-x-0 scale-100 opacity-100',
+                        )}
+                    </>
+                ) : viewState.currentUser ? (
+                    renderChatPanel(
                         viewState.currentUser,
                         viewState.currentMessages,
                         'translate-x-0 scale-100 opacity-100',
-                    )}
-                </>
-            ) : viewState.currentUser ? (
-                renderChatPanel(
-                    viewState.currentUser,
-                    viewState.currentMessages,
-                    'translate-x-0 scale-100 opacity-100',
-                )
-            ) : null}
+                    )
+                ) : null}
+            </div>
         </div>
     );
 }
