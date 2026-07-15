@@ -4,41 +4,16 @@ const router = express.Router();
 const User = require('../models/User'); // Path to your schema file
 const { OAuth2Client } = require('google-auth-library');
 const dns = require('dns').promises;
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
 // Initialize Google OAuth2 Client
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// 🚀 Initialize Resend with your API Key
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 // 🚀 In-memory storage for pending registrations (holds signup data until OTP is verified)
 const tempUsers = new Map();
-
-// Backend/src/routes/auth.js
-
-// Backend/src/routes/auth.js
-// Backend/src/routes/auth.js
-const transporter = nodemailer.createTransport({
-    // 🚀 Force IPv4 by targeting Google's direct SMTP IP address
-    host: '64.233.184.108', 
-    port: 465, // Or 587 (Try 465 first)
-    secure: true, // Set to false if you switch to port 587
-    auth: {
-        user: process.env.EMAIL_USER, 
-        pass: process.env.EMAIL_PASS  
-    },
-    tls: {
-        // Since we are using an IP address instead of the domain 'smtp.gmail.com',
-        // we must tell TLS to accept Google's certificate for the server.
-        servername: 'smtp.gmail.com',
-        rejectUnauthorized: false
-    },
-    connectionTimeout: 10000
-});
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ Nodemailer configuration error:", error);
-  } else {
-    console.log("🚀 Email server is ready to send messages!");
-  }
-});
 
 // 🚀 GOOGLE OAUTH SIGN-IN & SIGN-UP ROUTE
 router.post('/google-login', async (req, res) => {
@@ -145,7 +120,7 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// 🚀 SIGNUP ROUTE (Generates & Sends OTP, holds data in memory)
+// 🚀 SIGNUP ROUTE (Generates & Sends OTP using Resend HTTPS API)
 router.post('/signup', async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -177,18 +152,31 @@ router.post('/signup', async (req, res) => {
         // 3. Generate a 6-digit verification OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // 4. ✉️ Try to send the email immediately
+        // 4. ✉️ Send the email using Resend via secure HTTPS
         try {
-            await transporter.sendMail({
-                from: `"Chatly Support" <${process.env.EMAIL_USER}>`,
+            const { data, error } = await resend.emails.send({
+                from: 'Chatly <onboarding@resend.dev>', // Free default sandbox sender domain
                 to: normalizedEmail,
-                subject: "Your Chatly Verification Code",
-                text: `Your Chatly verification code is: ${otp}. It will expire in 10 minutes.`,
-                html: `<h3>Welcome to Chatly!</h3><p>Your verification code is: <strong>${otp}</strong></p>`
+                subject: 'Your Chatly Verification Code',
+                html: `
+                    <div style="font-family: sans-serif; padding: 20px; color: #111; max-width: 500px; border: 1px solid #eee; border-radius: 12px;">
+                        <h2 style="color: #e11d48;">Welcome to Chatly!</h2>
+                        <p>Use the following 6-digit verification code to complete your signup:</p>
+                        <h1 style="font-size: 32px; letter-spacing: 5px; color: #e11d48; margin: 20px 0;">${otp}</h1>
+                        <p style="font-size: 12px; color: #666;">This code will expire in 10 minutes.</p>
+                    </div>
+                `
             });
+
+            if (error) {
+                console.error("Resend API returned an error:", error);
+                return res.status(400).json({ error: "Could not deliver verification email." });
+            }
+
+            console.log("OTP Email successfully sent via Resend API. ID:", data.id);
         } catch (mailError) {
-            console.error("Nodemailer failed to dispatch:", mailError.message);
-            return res.status(400).json({ error: "This email address is invalid or undeliverable." });
+            console.error("Resend connection failed:", mailError.message);
+            return res.status(400).json({ error: "Mail delivery system temporarily unavailable." });
         }
 
         // 5. Save registration data + OTP into server memory temporarily (expires in 10 mins)
