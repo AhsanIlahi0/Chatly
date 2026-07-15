@@ -11,11 +11,22 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // 🚀 In-memory storage for pending registrations (holds signup data until OTP is verified)
 const tempUsers = new Map();
 
+// Backend/src/routes/auth.js
+
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com', // Explicitly point to Gmail's SMTP server
+    port: 465,              // Port for secure SSL
+    secure: true,           // Use SSL directly
     auth: {
-        user: process.env.EMAIL_USER, // Your Gmail address (stored in .env)
-        pass: process.env.EMAIL_PASS  // Your Gmail App Password (stored in .env)
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS  
+    },
+    // 🚀 THE FIX: Force Node.js to use IPv4 instead of IPv6
+    connectionTimeout: 10000, // 10 seconds timeout
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+    dns: {
+        family: 4 // Force DNS lookup to resolve IPv4 addresses first
     }
 });
 
