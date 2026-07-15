@@ -14,24 +14,24 @@ const tempUsers = new Map();
 // Backend/src/routes/auth.js
 
 // Backend/src/routes/auth.js
+// Backend/src/routes/auth.js
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,              // Use Port 587
-    secure: false,          // secure MUST be false for Port 587
+    // 🚀 Force IPv4 by targeting Google's direct SMTP IP address
+    host: '64.233.184.108', 
+    port: 465, // Or 587 (Try 465 first)
+    secure: true, // Set to false if you switch to port 587
     auth: {
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS  
     },
     tls: {
-        rejectUnauthorized: false, // Prevents certificate self-sign blocks in sandbox containers
-        ciphers: 'SSLv3'
+        // Since we are using an IP address instead of the domain 'smtp.gmail.com',
+        // we must tell TLS to accept Google's certificate for the server.
+        servername: 'smtp.gmail.com',
+        rejectUnauthorized: false
     },
-    connectionTimeout: 15000, // Extend timeout window
-    dns: {
-        family: 4 // Force IPv4 over IPv6
-    }
+    connectionTimeout: 10000
 });
-
 transporter.verify((error, success) => {
   if (error) {
     console.error("❌ Nodemailer configuration error:", error);
