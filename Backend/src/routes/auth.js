@@ -13,20 +13,22 @@ const tempUsers = new Map();
 
 // Backend/src/routes/auth.js
 
+// Backend/src/routes/auth.js
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com', // Explicitly point to Gmail's SMTP server
-    port: 465,              // Port for secure SSL
-    secure: true,           // Use SSL directly
+    host: 'smtp.gmail.com',
+    port: 587,              // Use Port 587
+    secure: false,          // secure MUST be false for Port 587
     auth: {
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS  
     },
-    // 🚀 THE FIX: Force Node.js to use IPv4 instead of IPv6
-    connectionTimeout: 10000, // 10 seconds timeout
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    tls: {
+        rejectUnauthorized: false, // Prevents certificate self-sign blocks in sandbox containers
+        ciphers: 'SSLv3'
+    },
+    connectionTimeout: 15000, // Extend timeout window
     dns: {
-        family: 4 // Force DNS lookup to resolve IPv4 addresses first
+        family: 4 // Force IPv4 over IPv6
     }
 });
 
