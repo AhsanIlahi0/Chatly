@@ -14,14 +14,21 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 
 const app = express();
-app.use(cors()); // Enable CORS for all routes
+app.use(cors({
+    origin: [
+        "http://localhost:5173",
+        "https://chat-ly.dev",
+        "https://www.chat-ly.dev"
+    ],
+    credentials: true
+}));
 app.use(express.json());
 const server = http.createServer(app); 
 
 // Inside your Backend file where Socket.io is initialized
 const io = require('socket.io')(server, {
     cors: {
-        origin: ["http://localhost:5173", "https://chatly-gamma-ten.vercel.app"],
+        origin: ["http://localhost:5173","https://chat-ly.dev", "https://www.chat-ly.dev"],
         methods: ["GET", "POST"]
     },
     maxHttpBufferSize: 2e7

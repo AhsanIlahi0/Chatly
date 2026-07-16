@@ -17,6 +17,7 @@ const tempUsers = new Map();
 
 // 🚀 GOOGLE OAUTH SIGN-IN & SIGN-UP ROUTE
 router.post('/google-login', async (req, res) => {
+    console.count("Backend Google Login");
     try {
         const { idToken } = req.body;
 
