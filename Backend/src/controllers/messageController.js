@@ -18,6 +18,45 @@ exports.getChatHistory = async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 };
+exports.getConversationSummaries = async (req, res) => {
+    try {
+        const { myId } = req.params;
+
+        const messages = await Message.find({
+            $or: [
+                { sender: myId },
+                { receiver: myId }
+            ]
+        }).sort({ createdAt: -1 }); // newest first
+
+        const summaries = {};
+
+        for (const msg of messages) {
+            const partnerId =
+                String(msg.sender) === String(myId)
+                    ? String(msg.receiver)
+                    : String(msg.sender);
+
+            // Skip because we already stored the newest message
+            if (summaries[partnerId]) continue;
+
+            summaries[partnerId] = {
+                text: msg.text,
+                file: msg.file,
+                createdAt: msg.createdAt,
+                status: msg.status,
+                sender: msg.sender,
+                receiver: msg.receiver
+            };
+        }
+
+        return res.status(200).json(summaries);
+    } catch (err) {
+        return res.status(500).json({
+            error: err.message
+        });
+    }
+};
 
 exports.deleteMessage = async (req, res) => {
     try {

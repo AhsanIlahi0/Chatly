@@ -109,7 +109,7 @@ function App() {
     // 🚀 EXCHANGE GOOGLE TOKEN WITH THE BACKEND API
     const handleGoogleLoginSuccess = async (response) => {
         console.log("Google callback fired");
-    console.log(response);
+        console.log(response);
         console.count("Google callback");
 
         console.log("Time:", new Date().toISOString());
@@ -338,6 +338,45 @@ function App() {
             console.error('Failed to pull message history:', err);
         }
     }, [currentUserId, formatMessageTime]);
+   const fetchConversationSummaries = useCallback(async (userList) => {
+    if (!currentUserId) return;
+
+    try {
+        const res = await axios.get(
+            `${API_URL}/api/messages/summary/${currentUserId}`
+        );
+
+        const summaries = res.data;
+
+        setUsers(
+            userList.map(user => {
+                const summary = summaries[user.id];
+
+                if (!summary) return user;
+
+                const isVoice =
+                    summary.file?.type?.startsWith("audio/");
+
+                return {
+                    ...user,
+                    lastMessage: isVoice
+                        ? "VN"
+                        : (summary.text?.trim() ||
+                           summary.file?.name ||
+                           ""),
+
+                    lastMessageType: isVoice ? "voice-note" : "text",
+
+                    lastMessageAt: new Date(summary.createdAt).getTime(),
+
+                    time: formatMessageTime(summary.createdAt)
+                };
+            })
+        );
+    } catch (err) {
+        console.error(err);
+    }
+}, [currentUserId, formatMessageTime]);
 
     const handleDeleteMessage = useCallback(async (messageId, partnerId) => {
         if (!currentUserId || !messageId || !partnerId) return;
@@ -461,6 +500,7 @@ function App() {
                         unread: 0
                     }));
                 setUsers(dynamicList);
+            await fetchConversationSummaries(dynamicList);
 
                 const storedActiveUserId = localStorage.getItem('chatly_active_user');
                 if (storedActiveUserId && dynamicList.some((user) => user.id === storedActiveUserId)) {
@@ -473,7 +513,7 @@ function App() {
         };
 
         fetchUsers();
-    }, [currentUserId]);
+    }, [currentUserId, fetchConversationSummaries, fetchConversation]);
 
     const activeMessages = activeUserId ? conversations[activeUserId] ?? [] : [];
     const lastReadReceiptSignatureRef = useRef('');
