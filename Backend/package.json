@@ -20,6 +20,7 @@
     "nodemailer": "^9.0.3",
     "resend": "^6.17.2",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.7"
   }
 }

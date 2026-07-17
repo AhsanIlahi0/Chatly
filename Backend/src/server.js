@@ -23,7 +23,8 @@ const ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://chatly-gamma-ten.vercel.app",
     "https://chat-ly.dev",
-    "https://www.chat-ly.dev"
+    "https://www.chat-ly.dev", 
+    "http://192.168.1.105:5000"
 ];
 
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));

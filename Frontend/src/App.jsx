@@ -66,11 +66,11 @@ function App() {
     useEffect(() => {
         activeUserIdRef.current = activeUserId;
     }, [activeUserId]);
-
+    
     // 🚀 INITIALIZE GOOGLE AUTH ONCE ON LOAD (Removed isSignup dependency to prevent re-mount errors)
     useEffect(() => {
         if (currentUser) return;
-
+        
         const initializeGoogleSignIn = () => {
             if (window.google) {
                 window.google.accounts.id.initialize({

@@ -1,20 +1,33 @@
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { API_URL } from '../config';
-
-const SOCKET_URL =  API_URL;
+import { toast } from 'sonner';
+const SOCKET_URL = API_URL;
 
 export const useSocket = (currentUserId, onMessageReceived, onStatusChanged, onAvatarChanged, onMessageStatusUpdated, onNewUserAdded, onMessageDeleted) => {
     const socketRef = useRef(null);
 
     useEffect(() => {
         if (!currentUserId) return;
-
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
         socketRef.current = io(SOCKET_URL);
         socketRef.current.emit('registerUser', currentUserId);
 
-        socketRef.current.on('receiveMessage', (message) => {
+        socketRef.current.on("receiveMessage", (message) => {
             onMessageReceived(message);
+
+            // Don't notify if user is already viewing this chat
+            if (activeUserId === message.sender) return;
+
+            // Only notify when tab isn't focused
+            if (document.hidden && Notification.permission === "granted") {
+                new Notification(message.senderName, {
+                    body: message.text,
+                    icon: message.senderAvatar || "/logo.png",
+                });
+            }
         });
 
         socketRef.current.on('userStatusChanged', (statusPayload) => {
