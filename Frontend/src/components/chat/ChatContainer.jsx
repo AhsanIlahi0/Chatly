@@ -171,23 +171,20 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
             </div>
 
                 <div className="flex shrink-0 items-center gap-1 text-dusk sm:gap-1.5">
+                    {/* Sign out — hidden on mobile (available in Sidebar and ··· menu there) */}
                     <button
                         onClick={onLogout}
                         aria-label="Sign out"
-                        className="cursor-pointer rounded-xl border border-ember/20 bg-ember/10 p-2 text-xs font-semibold text-ember transition-all hover:bg-ember hover:text-white sm:px-3.5 sm:py-2"
+                        className="hidden cursor-pointer rounded-xl border border-ember/20 bg-ember/10 px-3.5 py-2 text-xs font-semibold text-ember transition-all hover:bg-ember hover:text-white md:block"
                     >
-                        <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                            <path d="M16 17l5-5-5-5" />
-                            <path d="M21 12H9" />
-                        </svg>
-                        <span className="hidden sm:inline">Sign Out</span>
+                        Sign Out
                     </button>
 
+                    {/* Dark mode toggle — hidden on mobile (available in Sidebar) */}
                     <button
                         type="button"
                         onClick={setTheme}
-                        className="relative ml-0.5 flex h-8 w-14 cursor-pointer items-center rounded-full border border-bone bg-bone/50 p-1 transition-all duration-300 ease-in-out dark:border-ink-line dark:bg-white/5 sm:ml-1 sm:h-9 sm:w-16"
+                        className="relative ml-1 hidden h-9 w-16 cursor-pointer items-center rounded-full border border-bone bg-bone/50 p-1 transition-all duration-300 ease-in-out dark:border-ink-line dark:bg-white/5 md:flex"
                         aria-label="Toggle dark mode"
                     >
                         <div
@@ -217,13 +214,23 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                     <div className='relative' ref={menuRef}>
                         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className={`cursor-pointer rounded-full p-2 sm:p-2.5 transition-colors ${showProfile ? 'bg-bone text-ember dark:bg-white/10' : 'hover:bg-bone dark:hover:bg-white/10'}`} type="button" aria-label="More options">⋯</button>
                         {isMenuOpen && (
-                            <div className="absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-xl border border-bone bg-white py-1 shadow-lg dark:border-ink-line dark:bg-ink-soft">
+                            <div className="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-xl border border-bone bg-white py-1 shadow-lg dark:border-ink-line dark:bg-ink-soft">
                                 <button
                                     onClick={() => { onOpenProfile(); setIsMenuOpen(false); }}
                                     className="w-full px-4 py-2 text-left text-sm text-ink transition-colors hover:bg-bone/60 dark:text-bone dark:hover:bg-white/5 sm:hidden"
                                 >
                                     View Profile
                                 </button>
+
+                                {/* Dark mode toggle — mobile only, shown in chat ··· menu */}
+                                <button
+                                    onClick={() => { setTheme(); setIsMenuOpen(false); }}
+                                    className="flex w-full items-center justify-between px-4 py-2 text-left text-sm text-ink transition-colors hover:bg-bone/60 dark:text-bone dark:hover:bg-white/5 md:hidden"
+                                >
+                                    <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+                                    <span className="text-base">{theme === 'dark' ? '☀️' : '🌙'}</span>
+                                </button>
+
                                 <button
                                     onClick={() => { console.log('Muted'); setIsMenuOpen(false); }}
                                     className="w-full px-4 py-2 text-left text-sm text-ink transition-colors hover:bg-bone/60 dark:text-bone dark:hover:bg-white/5"
@@ -232,6 +239,14 @@ function ChatContainer({ theme, setTheme, activeUser, messages = [], onLogout, i
                                 </button>
 
                                 <hr className="my-1 border-bone dark:border-ink-line" />
+
+                                {/* Sign out — mobile only, shown in chat ··· menu */}
+                                <button
+                                    onClick={() => { onLogout(); setIsMenuOpen(false); }}
+                                    className="w-full px-4 py-2 text-left text-sm text-ember transition-colors hover:bg-ember/5 dark:hover:bg-ember/10 md:hidden"
+                                >
+                                    Sign Out
+                                </button>
 
                                 <button
                                     onClick={() => { onDeselectUser(); setIsMenuOpen(false); onCloseProfile(); }}

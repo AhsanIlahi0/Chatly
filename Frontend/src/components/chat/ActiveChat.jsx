@@ -1,4 +1,4 @@
-import ChatContainer from './ChatContainer';
+import ChatContainer from './ChatContainer.jsx';
 
 function ActiveChat({ theme, setTheme, onLogout, activeUser, messages, isDetailTabOpen, onSendMessage, onDeleteMessage, onDeselectUser, onCloseProfile, onOpenProfile, onToggleProfile, isChatActive, currentUserId }) {
     return (

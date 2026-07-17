@@ -30,15 +30,15 @@ function App() {
             console.error("Failed to parse local storage session:", err);
             return null;
         }
-    });
+    }); 
 
-    const [users, setUsers] = useState([]);
+    const [users, setUsers] = useState([]); 
     const usersRef = useRef(users);
     const activeUserIdRef = useRef(activeUserId);
-
+    
     // AUTHENTICATION FORM STATES
-    const [isSignup, setIsSignup] = useState(false);
-    const [nameInput, setNameInput] = useState("");
+    const [isSignup, setIsSignup] = useState(false); 
+    const [nameInput, setNameInput] = useState("");   
     const [emailInput, setEmailInput] = useState("");
     const [passwordInput, setPasswordInput] = useState("");
     const [authLoading, setAuthLoading] = useState(false);
@@ -81,10 +81,10 @@ function App() {
                 if (googleButtonRef.current) {
                     window.google.accounts.id.renderButton(
                         googleButtonRef.current,
-                        {
-                            theme: "filled_blue",
-                            size: "large",
-                            width: "320",
+                        { 
+                            theme: "filled_blue", 
+                            size: "large", 
+                            width: "320", 
                             text: "continue_with",
                             shape: "pill"
                         }
@@ -104,41 +104,34 @@ function App() {
             }, 100);
             return () => clearInterval(checkInterval);
         }
-    }, [currentUser]);
+    }, [currentUser]); 
 
     // 🚀 EXCHANGE GOOGLE TOKEN WITH THE BACKEND API
     const handleGoogleLoginSuccess = async (response) => {
-        console.log("Google callback fired");
-        console.log(response);
-        console.count("Google callback");
-
-        console.log("Time:", new Date().toISOString());
-        console.log("Token:", response.credential.substring(0, 30));
-
         setAuthLoading(true);
-
         try {
             const idToken = response.credential;
+            
+            const res = await axios.post(`${API_URL}/api/auth/google-login`, {
+                idToken
+            });
 
-            const res = await axios.post(
-                `${API_URL}/api/auth/google-login`,
-                { idToken }
-            );
-
-            console.log("Login succeeded");
-
+            // Persist returned user profile data
             localStorage.setItem("chatly_user", JSON.stringify(res.data));
             setCurrentUser(res.data);
-
+            
+            // Clean out local credentials
             setNameInput("");
             setEmailInput("");
             setPasswordInput("");
         } catch (err) {
-            console.error(err);
+            console.error("Google Auth execution failed:", err);
+            alert("Google Sign-In failed. Please try again.");
         } finally {
             setAuthLoading(false);
         }
     };
+
     const formatMessageTime = useCallback((value) => {
         const date = value ? new Date(value) : new Date();
 
@@ -338,45 +331,6 @@ function App() {
             console.error('Failed to pull message history:', err);
         }
     }, [currentUserId, formatMessageTime]);
-   const fetchConversationSummaries = useCallback(async (userList) => {
-    if (!currentUserId) return;
-
-    try {
-        const res = await axios.get(
-            `${API_URL}/api/messages/summary/${currentUserId}`
-        );
-
-        const summaries = res.data;
-
-        setUsers(
-            userList.map(user => {
-                const summary = summaries[user.id];
-
-                if (!summary) return user;
-
-                const isVoice =
-                    summary.file?.type?.startsWith("audio/");
-
-                return {
-                    ...user,
-                    lastMessage: isVoice
-                        ? "VN"
-                        : (summary.text?.trim() ||
-                           summary.file?.name ||
-                           ""),
-
-                    lastMessageType: isVoice ? "voice-note" : "text",
-
-                    lastMessageAt: new Date(summary.createdAt).getTime(),
-
-                    time: formatMessageTime(summary.createdAt)
-                };
-            })
-        );
-    } catch (err) {
-        console.error(err);
-    }
-}, [currentUserId, formatMessageTime]);
 
     const handleDeleteMessage = useCallback(async (messageId, partnerId) => {
         if (!currentUserId || !messageId || !partnerId) return;
@@ -500,7 +454,6 @@ function App() {
                         unread: 0
                     }));
                 setUsers(dynamicList);
-            await fetchConversationSummaries(dynamicList);
 
                 const storedActiveUserId = localStorage.getItem('chatly_active_user');
                 if (storedActiveUserId && dynamicList.some((user) => user.id === storedActiveUserId)) {
@@ -513,7 +466,7 @@ function App() {
         };
 
         fetchUsers();
-    }, [currentUserId, fetchConversationSummaries, fetchConversation]);
+    }, [currentUserId]);
 
     const activeMessages = activeUserId ? conversations[activeUserId] ?? [] : [];
     const lastReadReceiptSignatureRef = useRef('');
@@ -664,7 +617,7 @@ function App() {
 
         try {
             const res = await axios.post(`${API_URL}/api/auth/${endpoint}`, payload);
-
+            
             if (isSignup) {
                 // 🚀 OTP generated & sent on backend, hold screen flow for verification input
                 setIsVerifyingOtp(true);
@@ -705,7 +658,7 @@ function App() {
             // Write verified registration dataset profile
             localStorage.setItem("chatly_user", JSON.stringify(res.data));
             setCurrentUser(res.data);
-
+            
             // Clean out cached input controllers
             setNameInput("");
             setEmailInput("");
@@ -737,14 +690,14 @@ function App() {
                 <div className="pointer-events-none absolute bottom-[-12rem] right-[-8rem] h-[28rem] w-[28rem] rounded-full bg-teal/10 blur-[120px]" />
 
                 <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/10 bg-ink-soft/80 p-6 shadow-2xl backdrop-blur-sm animate-rise-in sm:p-8">
-
+                    
                     {/* 🚀 CONDITIONAL OTP VERIFICATION MODULE */}
                     {isVerifyingOtp ? (
                         <form onSubmit={handleVerifyOtp}>
                             <div className="mb-6 flex flex-col items-center text-center">
                                 <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-500 text-ink">
                                     <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
                                     </svg>
                                 </span>
                                 <h2 className="font-display text-2xl font-bold tracking-tight text-bone">
@@ -900,19 +853,25 @@ function App() {
                 currentUser={currentUser}
                 onAvatarUpload={handleAvatarUpload}
                 isChatActive={Boolean(activeUserId)}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+                onLogout={handleLogout}
             />
             <ActiveChat
-                onLogout={handleLogout}
-                theme={theme}
-                setTheme={toggleTheme}
-                activeUser={activeUser}
-                messages={activeMessages}
-                onSendMessage={handleSendMessage}
-                onDeleteMessage={handleDeleteMessage}
-                isDetailTabOpen={isDetailTabOpen}
-                onCloseProfile={() => setIsDetailTabOpen(false)}
-                onDeselectUser={() => setActiveUserId(null)}
-            />
+    onLogout={handleLogout}
+    theme={theme}
+    setTheme={toggleTheme}
+    activeUser={activeUser}
+    messages={activeMessages}
+    onSendMessage={handleSendMessage}
+    onDeleteMessage={handleDeleteMessage}
+    isDetailTabOpen={isDetailTabOpen}
+    onCloseProfile={() => setIsDetailTabOpen(false)}
+    onDeselectUser={() => setActiveUserId(null)}
+    isChatActive={Boolean(activeUserId)}     
+    currentUserId={currentUserId}            
+    onOpenProfile={() => setIsDetailTabOpen(true)}  
+/>
         </div>
     );
 }
