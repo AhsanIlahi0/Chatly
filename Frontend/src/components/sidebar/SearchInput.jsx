@@ -1,10 +1,11 @@
 function SearchInput({ searchTerm, setSearchTerm }) {
     return (
-        <div className="relative border-b border-bone/70 bg-parchment/60 px-5 py-4 dark:border-ink-line dark:bg-transparent">
+        <div className="relative bg-parchment/60 px-5 py-4  dark:bg-transparent">
             <input
                 type="text"
+                style={{ outline: 'none' }} // Inline style to remove the default focus outline
                 placeholder="Search people..."
-                className="w-full rounded-full border border-bone bg-white px-4 py-2.5 pl-10 text-sm text-ink outline-none transition-all placeholder-dusk/70 focus:border-ember focus:shadow-[0_0_0_4px_rgba(255,107,71,0.12)] dark:border-ink-line dark:bg-ink-soft dark:text-bone dark:placeholder:text-dusk dark:focus:border-ember"
+                className="w-full rounded-full  px-4 py-2.5 pl-10 text-sm text-ink outline-none transition-all placeholder-dusk/70  focus:shadow-[0_0_0_4px_rgba(255,107,71,0.12)]  dark:bg-ink-soft dark:text-bone dark:placeholder:text-dusk "
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />

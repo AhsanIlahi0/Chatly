@@ -250,6 +250,7 @@ function MessageInput({ onSendMessage }) {
 
                 <textarea
                     id='txtarea'
+                    style={{outline: 'none', resize: 'none'}}
                     className="min-h-[28px] mb-[4px] flex-1 resize-none bg-transparent text-sm text-ink outline-none placeholder:text-dusk/70 dark:text-bone dark:placeholder:text-dusk py-1.5"
                     placeholder="Type a message..."
                     rows="1"
