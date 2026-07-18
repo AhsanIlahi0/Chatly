@@ -927,6 +927,9 @@ function App() {
                 isDetailTabOpen={isDetailTabOpen}
                 onCloseProfile={() => setIsDetailTabOpen(false)}
                 onDeselectUser={() => setActiveUserId(null)}
+                 isChatActive={Boolean(activeUserId)}     
+    currentUserId={currentUserId}
+    onOpenProfile={() => setIsDetailTabOpen(true)}  
             />
         </div>
     );
