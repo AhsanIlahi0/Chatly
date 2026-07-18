@@ -66,11 +66,11 @@ function App() {
     useEffect(() => {
         activeUserIdRef.current = activeUserId;
     }, [activeUserId]);
-    
+
     // 🚀 INITIALIZE GOOGLE AUTH ONCE ON LOAD (Removed isSignup dependency to prevent re-mount errors)
     useEffect(() => {
         if (currentUser) return;
-        
+
         const initializeGoogleSignIn = () => {
             if (window.google) {
                 window.google.accounts.id.initialize({
@@ -331,6 +331,7 @@ function App() {
             console.error('Failed to pull message history:', err);
         }
     }, [currentUserId, formatMessageTime]);
+
     const fetchConversationSummaries = useCallback(async (userList) => {
         if (!currentUserId) return;
 
@@ -472,7 +473,26 @@ function App() {
         applyAvatarUpdate(userId, avatarUrl);
     }, [applyAvatarUpdate]);
 
-    const { emitSendMessage, emitMarkMessagesRead, emitUpdateAvatar } = useSocket(currentUserId, handleIncomingLiveMessage, handleUserStatusChanged, handleAvatarChanged, handleMessageStatusUpdated, handleNewUserAdded, handleMessageDeleted);
+    // Called by useSocket whenever the socket reconnects after being dropped.
+    // Re-fetches the active conversation so any messages that arrived while
+    // the socket was down (e.g. phone was backgrounded) are loaded from the DB.
+    const handleReconnected = useCallback(() => {
+        const currentActiveId = activeUserIdRef.current;
+        if (currentActiveId) {
+            fetchConversation(currentActiveId);
+        }
+    }, [fetchConversation]);
+
+    const { emitSendMessage, emitMarkMessagesRead, emitUpdateAvatar } = useSocket(
+        currentUserId,
+        handleIncomingLiveMessage,
+        handleUserStatusChanged,
+        handleAvatarChanged,
+        handleMessageStatusUpdated,
+        handleNewUserAdded,
+        handleMessageDeleted,
+        handleReconnected   // ← re-fetches missed messages on every reconnect
+    );
 
     // FETCH DYNAMIC DIRECTORY ONCE LOGGED IN
     useEffect(() => {
@@ -907,9 +927,6 @@ function App() {
                 isDetailTabOpen={isDetailTabOpen}
                 onCloseProfile={() => setIsDetailTabOpen(false)}
                 onDeselectUser={() => setActiveUserId(null)}
-                isChatActive={Boolean(activeUserId)}
-                currentUserId={currentUserId}
-                onOpenProfile={() => setIsDetailTabOpen(true)}
             />
         </div>
     );
