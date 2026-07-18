@@ -17,7 +17,6 @@ const tempUsers = new Map();
 
 // 🚀 GOOGLE OAUTH SIGN-IN & SIGN-UP ROUTE
 router.post('/google-login', async (req, res) => {
-    console.count("Backend Google Login");
     try {
         const { idToken } = req.body;
 
@@ -307,3 +306,63 @@ router.put('/avatar', async (req, res) => {
 });
 
 module.exports = router;
+
+// ── PUT /api/auth/setup-profile ────────────────────────────────────────────
+// Called during onboarding — sets username and visibility for the first time
+router.put('/setup-profile', async (req, res) => {
+    try {
+        const { userId, username, visibility } = req.body;
+
+        if (!userId || !username || !visibility) {
+            return res.status(400).json({ error: 'userId, username, and visibility are required' });
+        }
+
+        const normalizedUsername = username.toLowerCase().trim();
+
+        // Validate format
+        if (!/^[a-z0-9_]{3,20}$/.test(normalizedUsername)) {
+            return res.status(400).json({ error: 'Username must be 3-20 characters: letters, numbers, underscores only' });
+        }
+
+        // Check uniqueness
+        const taken = await User.findOne({ username: normalizedUsername, _id: { $ne: userId } });
+        if (taken) {
+            return res.status(409).json({ error: 'Username already taken' });
+        }
+
+        const updated = await User.findByIdAndUpdate(
+            userId,
+            { username: normalizedUsername, visibility },
+            { new: true }
+        ).select('-password');
+
+        if (!updated) return res.status(404).json({ error: 'User not found' });
+
+        return res.status(200).json(updated);
+    } catch (error) {
+        console.error('setup-profile error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// ── GET /api/auth/search ───────────────────────────────────────────────────
+// Searches for a user by exact username
+// Query params: username, currentUserId
+router.get('/search', async (req, res) => {
+    try {
+        const { username, currentUserId } = req.query;
+        if (!username) return res.status(400).json({ error: 'username query param is required' });
+
+        const user = await User.findOne({
+            username: username.toLowerCase().trim(),
+            _id: { $ne: currentUserId }
+        }).select('_id name avatar username visibility status');
+
+        if (!user) return res.status(404).json({ error: 'No user found with that username' });
+
+        return res.status(200).json(user);
+    } catch (error) {
+        console.error('search error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});

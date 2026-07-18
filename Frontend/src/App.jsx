@@ -1,6 +1,8 @@
 import Sidebar from "./components/sidebar/Sidebar";
 import ActiveChat from "./components/chat/ActiveChat";
 import DetailTab from "./components/profile/DetailTab";
+import ProfileSetupModal from "./components/onboarding/ProfileSetupModal";
+import SearchModal from "./components/sidebar/SearchModal";
 import emmaAvatar from "./images/1avatar.png";
 import { useDarkMode } from './hooks/useDarkMode';
 import { useSocket } from './hooks/useSocket';
@@ -8,9 +10,17 @@ import axios from 'axios';
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { API_URL } from './config';
 
+
 function App() {
     const [theme, toggleTheme] = useDarkMode();
     const [isDetailTabOpen, setIsDetailTabOpen] = useState(false);
+
+    // ── Friend system state ──────────────────────────────────────────────────
+    const [friendRequests, setFriendRequests] = useState([]);   // incoming pending requests
+    const [friendStatuses, setFriendStatuses] = useState({});   // { userId: 'accepted' | 'requested' | 'pending' | 'none' }
+    const [showSearch, setShowSearch] = useState(false);
+
+    // ── Conversations ────────────────────────────────────────────────────────
     const [conversations, setConversations] = useState({});
     const [activeUserId, setActiveUserId] = useState(() => {
         try {
@@ -66,7 +76,11 @@ function App() {
     useEffect(() => {
         activeUserIdRef.current = activeUserId;
     }, [activeUserId]);
-
+    useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+}, []);
     // 🚀 INITIALIZE GOOGLE AUTH ONCE ON LOAD (Removed isSignup dependency to prevent re-mount errors)
     useEffect(() => {
         if (currentUser) return;
@@ -494,39 +508,139 @@ function App() {
         handleReconnected   // ← re-fetches missed messages on every reconnect
     );
 
-    // FETCH DYNAMIC DIRECTORY ONCE LOGGED IN
+    // FETCH DYNAMIC DIRECTORY + FRIEND DATA ONCE LOGGED IN
     useEffect(() => {
         if (!currentUserId) return;
 
         const fetchUsers = async () => {
             try {
-                const res = await axios.get(`${API_URL}/api/auth/all-users`);
+                // Fetch users, pending requests, and accepted friends in parallel
+                const [usersRes, requestsRes, friendsRes] = await Promise.all([
+                    axios.get(`${API_URL}/api/auth/all-users`),
+                    axios.get(`${API_URL}/api/friends/pending/${currentUserId}`),
+                    axios.get(`${API_URL}/api/friends/list/${currentUserId}`),
+                ]);
 
-                const dynamicList = res.data
+                // Build a set of accepted friend IDs for sidebar visibility
+                const acceptedFriendIds = new Set(friendsRes.data.map(f => f.id.toString()));
+
+                // Build friendStatuses map: { userId: status }
+                const statusMap = {};
+                friendsRes.data.forEach(f => { statusMap[f.id.toString()] = 'accepted'; });
+                requestsRes.data.forEach(r => { statusMap[r.requesterId.toString()] = 'pending'; });
+                setFriendStatuses(statusMap);
+
+                // Set incoming pending requests for the bell icon
+                setFriendRequests(requestsRes.data);
+
+                const dynamicList = usersRes.data
                     .filter(u => u._id !== currentUserId)
                     .map(u => ({
                         id: u._id,
                         name: u.name,
                         avatar: u.avatar,
-                        status: u.status || "offline",
+                        username: u.username,
+                        visibility: u.visibility,
+                        status: u.status || 'offline',
                         lastMessageAt: 0,
-                        unread: 0
+                        unread: 0,
+                        // isFriend drives sidebar visibility even if no message yet
+                        isFriend: acceptedFriendIds.has(u._id.toString()),
                     }));
+
                 setUsers(dynamicList);
                 await fetchConversationSummaries(dynamicList);
 
                 const storedActiveUserId = localStorage.getItem('chatly_active_user');
-                if (storedActiveUserId && dynamicList.some((user) => user.id === storedActiveUserId)) {
+                if (storedActiveUserId && dynamicList.some(u => u.id === storedActiveUserId)) {
                     setActiveUserId(storedActiveUserId);
                     await fetchConversation(storedActiveUserId);
                 }
             } catch (err) {
-                console.error("Error pulling live user list directory:", err);
+                console.error('Error pulling live user list directory:', err);
             }
         };
 
         fetchUsers();
     }, [currentUserId, fetchConversationSummaries, fetchConversation]);
+    // ── Friend action handlers ────────────────────────────────────────────────
+
+    const handleSendFriendRequest = useCallback(async (toUserId) => {
+        await axios.post(`${API_URL}/api/friends/send-request`, {
+            senderId: currentUserId,
+            receiverId: toUserId,
+        });
+        setFriendStatuses(prev => ({ ...prev, [toUserId]: 'requested' }));
+    }, [currentUserId]);
+
+    const handleAcceptRequest = useCallback(async (requesterId) => {
+        await axios.post(`${API_URL}/api/friends/accept-request`, {
+            userId: currentUserId,
+            requesterId,
+        });
+        setFriendRequests(prev => prev.filter(r => r.requesterId !== requesterId));
+        setFriendStatuses(prev => ({ ...prev, [requesterId]: 'accepted' }));
+        // Make the newly accepted friend visible in sidebar immediately
+        setUsers(prev => prev.map(u =>
+            u.id === requesterId ? { ...u, isFriend: true } : u
+        ));
+    }, [currentUserId]);
+
+    const handleRejectRequest = useCallback(async (requesterId) => {
+        await axios.post(`${API_URL}/api/friends/reject-request`, {
+            userId: currentUserId,
+            requesterId,
+        });
+        setFriendRequests(prev => prev.filter(r => r.requesterId !== requesterId));
+        setFriendStatuses(prev => {
+            const next = { ...prev };
+            delete next[requesterId];
+            return next;
+        });
+    }, [currentUserId]);
+
+    // Called when a friend request notification arrives via socket
+    const handleFriendRequestReceived = useCallback((payload) => {
+        setFriendRequests(prev => {
+            if (prev.some(r => r.requesterId === payload.senderId)) return prev;
+            return [...prev, {
+                requesterId: payload.senderId,
+                name: payload.senderName,
+                avatar: payload.senderAvatar,
+                username: payload.senderUsername,
+            }];
+        });
+        setFriendStatuses(prev => ({ ...prev, [payload.senderId]: 'pending' }));
+    }, []);
+
+    // Called when your sent request gets accepted
+    const handleFriendRequestAccepted = useCallback((payload) => {
+        setFriendStatuses(prev => ({ ...prev, [payload.accepterId]: 'accepted' }));
+        setUsers(prev => prev.map(u =>
+            u.id === payload.accepterId ? { ...u, isFriend: true } : u
+        ));
+    }, []);
+
+    // When user is found via search and clicks "Message" on a public account
+    const handleStartChatWithUser = useCallback((foundUser) => {
+        // Add to users list if not already there
+        setUsers(prev => {
+            if (prev.some(u => u.id === foundUser._id.toString())) return prev;
+            return [...prev, {
+                id: foundUser._id.toString(),
+                name: foundUser.name,
+                avatar: foundUser.avatar,
+                username: foundUser.username,
+                visibility: foundUser.visibility,
+                status: foundUser.status || 'offline',
+                lastMessageAt: 0,
+                unread: 0,
+                isFriend: false,
+            }];
+        });
+        setActiveUserId(foundUser._id.toString());
+    }, []);
+
     const activeMessages = activeUserId ? conversations[activeUserId] ?? [] : [];
     const lastReadReceiptSignatureRef = useRef('');
 
@@ -903,8 +1017,33 @@ function App() {
     }
 
     // Main App View Dashboard (Triggers once logged in)
+    const needsOnboarding = !currentUser?.visibility;
+
     return (
         <div className="flex w-full h-screen overflow-hidden bg-parchment text-ink dark:bg-ink dark:text-bone">
+
+            {/* Profile setup modal — blocks app until onboarding is done */}
+            {needsOnboarding && (
+                <ProfileSetupModal
+                    currentUser={currentUser}
+                    onComplete={(updatedUser) => {
+                        localStorage.setItem('chatly_user', JSON.stringify(updatedUser));
+                        setCurrentUser(updatedUser);
+                    }}
+                />
+            )}
+
+            {/* Search modal */}
+            {showSearch && (
+                <SearchModal
+                    currentUserId={currentUserId}
+                    friendStatuses={friendStatuses}
+                    onClose={() => setShowSearch(false)}
+                    onStartChat={handleStartChatWithUser}
+                    onSendRequest={handleSendFriendRequest}
+                />
+            )}
+
             <Sidebar
                 users={users}
                 activeUserId={activeUserId}
@@ -915,6 +1054,10 @@ function App() {
                 theme={theme}
                 onToggleTheme={toggleTheme}
                 onLogout={handleLogout}
+                friendRequests={friendRequests}
+                onAcceptRequest={handleAcceptRequest}
+                onRejectRequest={handleRejectRequest}
+                onOpenSearch={() => setShowSearch(true)}
             />
             <ActiveChat
                 onLogout={handleLogout}
@@ -927,9 +1070,9 @@ function App() {
                 isDetailTabOpen={isDetailTabOpen}
                 onCloseProfile={() => setIsDetailTabOpen(false)}
                 onDeselectUser={() => setActiveUserId(null)}
-                 isChatActive={Boolean(activeUserId)}     
-    currentUserId={currentUserId}
-    onOpenProfile={() => setIsDetailTabOpen(true)}  
+                isChatActive={Boolean(activeUserId)}
+                currentUserId={currentUserId}
+                onOpenProfile={() => setIsDetailTabOpen(true)}
             />
         </div>
     );

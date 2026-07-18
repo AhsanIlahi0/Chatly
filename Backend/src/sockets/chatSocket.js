@@ -1,30 +1,22 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
 
+// Accept both io and app so we can share onlineUsers via app.set
+const chatSocket = (io, app) => {
+    const onlineUsers = new Map(); // userId → socketId
 
-const chatSocket = (io) => {
-    const onlineUsers = new Map(); // Tracks { userId: socketId }
+    // Make onlineUsers available to HTTP route handlers (friend routes need it for notifications)
+    if (app) app.set('onlineUsers', onlineUsers);
 
     const broadcastUserStatus = async (userId, status) => {
         if (!userId) return;
-
-        try {
-            await User.findByIdAndUpdate(userId, { status });
-        } catch (err) {
-            console.error('Failed to persist user status:', err);
-        }
-
+        try { await User.findByIdAndUpdate(userId, { status }); }
+        catch (err) { console.error('Failed to persist user status:', err); }
         io.emit('userStatusChanged', { userId, status });
     };
 
-    const emitMessageStatusUpdate = (messageIds, status, partnerId, recipientId) => {
-        const payload = {
-            messageIds,
-            status,
-            partnerId,
-            recipientId
-        };
-
+    const emitMessageStatusUpdate = (messageIds, status, partnerId) => {
+        const payload = { messageIds, status, partnerId };
         if (partnerId && onlineUsers.has(partnerId)) {
             io.to(onlineUsers.get(partnerId)).emit('messageStatusUpdated', payload);
         }
@@ -32,39 +24,19 @@ const chatSocket = (io) => {
 
     io.on('connection', (socket) => {
 
-        socket.on("registerUser", async (userId) => {
+        socket.on('registerUser', async (userId) => {
             onlineUsers.set(userId, socket.id);
-
             await broadcastUserStatus(userId, 'online');
-
-            // 🚀 FETCH USER INFO AND BROADCAST PRESENCE
-            try {
-                const userDetails = await User.findById(userId);
-                if (userDetails) {
-                    socket.emit('userStatusChanged', {
-                        userId: userDetails._id,
-                        status: 'online'
-                    });
-                }
-            } catch (err) {
-                console.error(err);
-            }
         });
 
-        // 🛠️ SAVE & EMIT REAL-TIME INTERACTION
-        // Inside Backend/src/sockets/chatSocket.js
-        // Inside your Backend socket file
         socket.on('sendMessage', async (messageData) => {
-            // 1. Destructure the file field from the incoming message data
             const { senderId, receiverId, text, file } = messageData;
-
             try {
-                // 2. Insert it cleanly into your Mongoose save statement
                 const newMessage = await Message.create({
                     sender: senderId,
                     receiver: receiverId,
-                    text: text,
-                    file: file,
+                    text,
+                    file,
                     status: 'sent'
                 });
 
@@ -78,70 +50,52 @@ const chatSocket = (io) => {
                     status: newMessage.status
                 };
 
-                // Send the saved message back to the sender so the UI can keep the database id.
+                // Echo back to sender so UI gets the DB id
                 io.to(socket.id).emit('receiveMessage', payload);
 
-                // 3. Emit it live to the receiver exactly like before
+                // Deliver to receiver if online
                 const targetSocketId = onlineUsers.get(receiverId);
                 if (targetSocketId) {
-                    io.to(targetSocketId).emit('receiveMessage', {
-                        ...payload
-                    });
-
+                    io.to(targetSocketId).emit('receiveMessage', payload);
                     await Message.updateOne({ _id: newMessage._id }, { status: 'delivered' });
-                    emitMessageStatusUpdate([newMessage._id.toString()], 'delivered', senderId, receiverId);
+                    emitMessageStatusUpdate([newMessage._id.toString()], 'delivered', senderId);
                 }
             } catch (err) {
-                console.error("Error saving message with file asset:", err);
+                console.error('Error saving message:', err);
             }
         });
 
         socket.on('markMessagesRead', async ({ readerId, partnerId }) => {
             if (!readerId || !partnerId) return;
-
             try {
-                const unreadMessages = await Message.find({
+                const unread = await Message.find({
                     sender: partnerId,
                     receiver: readerId,
                     status: { $ne: 'read' }
                 }).select('_id');
 
-                if (!unreadMessages.length) return;
+                if (!unread.length) return;
 
-                const messageIds = unreadMessages.map((message) => message._id.toString());
-
-                await Message.updateMany(
-                    { _id: { $in: messageIds } },
-                    { $set: { status: 'read' } }
-                );
-
-                emitMessageStatusUpdate(messageIds, 'read', partnerId, readerId);
+                const ids = unread.map(m => m._id.toString());
+                await Message.updateMany({ _id: { $in: ids } }, { $set: { status: 'read' } });
+                emitMessageStatusUpdate(ids, 'read', partnerId);
             } catch (err) {
-                console.error('Error marking messages as read:', err);
+                console.error('Error marking messages read:', err);
             }
         });
-        // 3. Handle sudden disconnections
-        socket.on('disconnect', () => {
 
-            // Find and prune the disconnected user from our online tracking map
+        socket.on('updateAvatar', (payload) => {
+            socket.broadcast.emit('userAvatarChanged', payload);
+        });
+
+        socket.on('disconnect', () => {
             for (let [userId, socketId] of onlineUsers.entries()) {
                 if (socketId === socket.id) {
                     onlineUsers.delete(userId);
                     broadcastUserStatus(userId, 'offline');
-                    console.log(`❌ User ${userId} disconnected`);
-
                     break;
                 }
             }
-        });
-        // Inside Backend/src/sockets/chatSocket.js
-        // Look for your module.exports = (io) => { io.on('connection', (socket) => { ... }) }
-
-        // 🚀 ADD THIS LISTENER INSIDE THE CONNECTION BLOCK:
-        socket.on('updateAvatar', (payload) => {
-            // payload = { userId: "...", avatarUrl: "..." }
-            // Broadcast it out to all other active tabs instantly
-            socket.broadcast.emit('userAvatarChanged', payload);
         });
     });
 };
