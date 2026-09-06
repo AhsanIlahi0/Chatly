@@ -22,17 +22,29 @@ const ALLOWED_ORIGINS = [
     'https://www.chat-ly.dev'
 ];
 
-const isAllowedOrigin = (origin) => (
-    !origin
-    || ALLOWED_ORIGINS.includes(origin)
-    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
-);
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log('❌ CORS blocked:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-app.use(cors({ origin: isAllowedOrigin, credentials: true }));
+app.options('*', cors());
 app.use(express.json());
 
 const io = new Server(server, {
-    cors: { origin: isAllowedOrigin, methods: ['GET', 'POST'] },
+    cors: {
+        origin: ALLOWED_ORIGINS,
+        methods: ['GET', 'POST'],
+        credentials: true
+    },
     maxHttpBufferSize: 2e7
 });
 
