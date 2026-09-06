@@ -59,7 +59,7 @@ function DiscoverModal({ isOpen, onClose, currentUser, socket }) {
                                     ) : (
                                         <button 
                                             onClick={() => {
-                                                axios.post('http://localhost:5000/api/auth/users', { senderId: currentUserId, receiverId: user._id });
+                                                axios.post(`${API_URL}/api/auth/users`, { senderId: currentUserId, receiverId: user._id });
                                                 onClose();
                                             }}
                                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 transition-all active:scale-95"

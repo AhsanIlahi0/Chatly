@@ -22,11 +22,17 @@ const ALLOWED_ORIGINS = [
     'https://www.chat-ly.dev'
 ];
 
-app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+const isAllowedOrigin = (origin) => (
+    !origin
+    || ALLOWED_ORIGINS.includes(origin)
+    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)
+);
+
+app.use(cors({ origin: isAllowedOrigin, credentials: true }));
 app.use(express.json());
 
 const io = new Server(server, {
-    cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
+    cors: { origin: isAllowedOrigin, methods: ['GET', 'POST'] },
     maxHttpBufferSize: 2e7
 });
 
