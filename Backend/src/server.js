@@ -10,6 +10,7 @@ const chatSocket = require('./sockets/chatSocket');
 const messageRoutes = require('./routes/messageRoutes');
 const authRoutes = require('./routes/auth');
 const friendRoutes = require('./routes/friendRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 const cors = require('cors');
 
 const app = express();
@@ -53,6 +54,7 @@ chatSocket(io, app);  // pass app so socket can access onlineUsers via app.get('
 app.use('/api/messages', messageRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/ai', aiRoutes);
 
 const PORT = process.env.PORT || 5000;
 

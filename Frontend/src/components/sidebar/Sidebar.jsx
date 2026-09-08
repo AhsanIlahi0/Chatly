@@ -19,6 +19,11 @@ function Sidebar({
     onAcceptRequest,
     onRejectRequest,
     onOpenSearch,
+    chatSettings = {},
+    onTogglePin,
+    onToggleMute,
+    onClearChat,
+    onDeleteChat,
 }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [showRequests, setShowRequests] = useState(false);
@@ -32,13 +37,19 @@ function Sidebar({
         .filter(user =>
             `${user.name} ${user.lastMessage ?? ''}`.toLowerCase().includes(searchTerm.toLowerCase())
         )
-        .sort((a, b) => Number(b.lastMessageAt || 0) - Number(a.lastMessageAt || 0));
+        .sort((a, b) => {
+            const aPinned = Boolean(chatSettings[a.id]?.pinned);
+            const bPinned = Boolean(chatSettings[b.id]?.pinned);
+
+            if (aPinned !== bPinned) return Number(bPinned) - Number(aPinned);
+            return Number(b.lastMessageAt || 0) - Number(a.lastMessageAt || 0);
+        });
 
     const onlineCount = users.filter(u => u.status === 'online').length;
     const pendingCount = friendRequests.length;
 
     return (
-        <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-80 h-screen flex-col overflow-hidden bg-white/90 text-ink border-r border-bone backdrop-blur-sm dark:bg-ink-soft/40 dark:border-ink-line dark:text-bone`}>
+        <div className={`${isChatActive ? 'hidden md:flex' : 'flex'} w-full md:w-80 h-screen flex-col overflow-visible bg-white/90 text-ink border-r border-bone backdrop-blur-sm dark:bg-ink-soft/40 dark:border-ink-line dark:text-bone`}>
 
             {/* ── Header ── */}
             <div className="px-5 py-5 border-b border-bone dark:border-ink-line">
@@ -161,7 +172,7 @@ function Sidebar({
             <SearchInput searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
             {/* ── Conversation list ── */}
-            <div className="flex-1 overflow-x-hidden overflow-y-auto">
+            <div className="flex-1 overflow-x-visible overflow-y-auto">
                 {filteredUsers.length > 0 ? (
                     filteredUsers.map(user => (
                         <UserItem
@@ -169,6 +180,11 @@ function Sidebar({
                             user={user}
                             isActive={activeUserId === user.id}
                             onClick={() => onSelectUser(user.id)}
+                            chatSettings={chatSettings[user.id] || {}}
+                            onTogglePin={onTogglePin}
+                            onToggleMute={onToggleMute}
+                            onClearChat={onClearChat}
+                            onDeleteChat={onDeleteChat}
                         />
                     ))
                 ) : (

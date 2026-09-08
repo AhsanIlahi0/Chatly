@@ -10,6 +10,22 @@ import axios from 'axios';
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { API_URL } from './config';
 
+const AI_USER_ID = 'chatly-ai';
+const AI_USER = {
+    id: AI_USER_ID,
+    name: 'Meta AI',
+    username: 'meta-ai',
+    avatar: emmaAvatar,
+    status: 'online',
+    isAi: true,
+    isFriend: true,
+    lastMessageAt: 0,
+    unread: 0,
+    time: '',
+    lastMessage: 'Ask me anything',
+    lastMessageType: 'text'
+};
+
 
 function App() {
     const [theme, toggleTheme] = useDarkMode();
@@ -21,7 +37,24 @@ function App() {
     const [showSearch, setShowSearch] = useState(false);
 
     // ── Conversations ────────────────────────────────────────────────────────
-    const [conversations, setConversations] = useState({});
+    const [conversations, setConversations] = useState(() => {
+        try {
+            const saved = localStorage.getItem('chatly_ai_messages');
+            return saved ? { [AI_USER_ID]: JSON.parse(saved) } : {};
+        } catch (error) {
+            console.error('Failed to restore AI conversation:', error);
+            return {};
+        }
+    });
+    const [chatSettings, setChatSettings] = useState(() => {
+        try {
+            const saved = localStorage.getItem('chatly_chat_settings');
+            return saved ? JSON.parse(saved) : {};
+        } catch (error) {
+            console.error('Failed to restore chat settings:', error);
+            return {};
+        }
+    });
     const [activeUserId, setActiveUserId] = useState(() => {
         try {
             return localStorage.getItem('chatly_active_user') || null;
@@ -68,6 +101,22 @@ function App() {
         () => users.find((user) => user.id === activeUserId) ?? null,
         [users, activeUserId]
     );
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('chatly_ai_messages', JSON.stringify(conversations[AI_USER_ID] || []));
+        } catch (error) {
+            console.error('Failed to save AI conversation:', error);
+        }
+    }, [conversations]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('chatly_chat_settings', JSON.stringify(chatSettings));
+        } catch (error) {
+            console.error('Failed to save chat settings:', error);
+        }
+    }, [chatSettings]);
 
     useEffect(() => {
         usersRef.current = users;
@@ -548,13 +597,14 @@ function App() {
                         isFriend: acceptedFriendIds.has(u._id.toString()),
                     }));
 
-                setUsers(dynamicList);
-                await fetchConversationSummaries(dynamicList);
+                const usersWithAi = [AI_USER, ...dynamicList.filter((user) => user.id !== AI_USER_ID)];
+                setUsers(usersWithAi);
+                await fetchConversationSummaries(usersWithAi);
 
                 const storedActiveUserId = localStorage.getItem('chatly_active_user');
-                if (storedActiveUserId && dynamicList.some(u => u.id === storedActiveUserId)) {
+                if (storedActiveUserId && usersWithAi.some(u => u.id === storedActiveUserId)) {
                     setActiveUserId(storedActiveUserId);
-                    await fetchConversation(storedActiveUserId);
+                    if (storedActiveUserId !== AI_USER_ID) await fetchConversation(storedActiveUserId);
                 }
             } catch (err) {
                 console.error('Error pulling live user list directory:', err);
@@ -675,11 +725,127 @@ function App() {
             )
         );
 
-        await fetchConversation(userId);
+        if (userId !== AI_USER_ID) await fetchConversation(userId);
     };
+
+    const updateChatSetting = useCallback((userId, key, value) => {
+        if (!userId) return;
+        setChatSettings((prev) => ({
+            ...prev,
+            [userId]: {
+                ...(prev[userId] || {}),
+                [key]: value
+            }
+        }));
+    }, []);
+
+    const clearChat = useCallback((userId) => {
+        if (!userId) return;
+
+        setConversations((prev) => ({
+            ...prev,
+            [userId]: []
+        }));
+
+        setUsers((currentUsers) => currentUsers.map((user) =>
+            user.id === userId
+                ? {
+                    ...user,
+                    lastMessage: '',
+                    lastMessageType: 'text',
+                    lastMessageAt: 0,
+                    time: '',
+                    unread: 0
+                }
+                : user
+        ));
+
+        if (activeUserId === userId) {
+            setActiveUserId(null);
+            try {
+                localStorage.removeItem('chatly_active_user');
+            } catch (error) {
+                console.error('Failed to clear active chat:', error);
+            }
+        }
+    }, [activeUserId]);
+
+    const deleteChat = useCallback((userId) => {
+        if (!userId) return;
+
+        setConversations((prev) => {
+            const next = { ...prev };
+            delete next[userId];
+            return next;
+        });
+
+        setUsers((currentUsers) => currentUsers.filter((user) => user.id !== userId));
+        setChatSettings((prev) => {
+            const next = { ...prev };
+            delete next[userId];
+            return next;
+        });
+
+        if (activeUserId === userId) {
+            setActiveUserId(null);
+            try {
+                localStorage.removeItem('chatly_active_user');
+            } catch (error) {
+                console.error('Failed to clear active chat after delete:', error);
+            }
+        }
+    }, [activeUserId]);
 
     const handleSendMessage = async (messageText, selectedFile) => {
         if (!activeUserId) return;
+
+        if (activeUserId === AI_USER_ID) {
+            if (selectedFile || !messageText.trim()) return;
+
+            const userMessage = {
+                id: `ai-user-${Date.now()}`,
+                text: messageText.trim(),
+                time: new Date(),
+                sent: true,
+                status: 'read'
+            };
+            const existingMessages = conversations[AI_USER_ID] || [];
+            const nextMessages = [...existingMessages, userMessage];
+            setConversations((prev) => ({ ...prev, [AI_USER_ID]: nextMessages }));
+            setUsers((prev) => prev.map((user) => user.id === AI_USER_ID
+                ? { ...user, lastMessage: messageText.trim(), lastMessageAt: Date.now(), time: formatMessageTime() }
+                : user));
+
+            try {
+                const response = await axios.post(`${API_URL}/api/ai/chat`, {
+                    messages: nextMessages.map((message) => ({
+                        role: message.sent ? 'user' : 'assistant',
+                        content: message.text
+                    }))
+                });
+                const aiMessage = {
+                    id: `ai-response-${Date.now()}`,
+                    text: response.data.text,
+                    time: new Date(),
+                    sent: false,
+                    status: 'read'
+                };
+                setConversations((prev) => ({ ...prev, [AI_USER_ID]: [...(prev[AI_USER_ID] || nextMessages), aiMessage] }));
+                setUsers((prev) => prev.map((user) => user.id === AI_USER_ID
+                    ? { ...user, lastMessage: aiMessage.text, lastMessageAt: Date.now(), time: formatMessageTime() }
+                    : user));
+            } catch (error) {
+                const errorMessage = {
+                    id: `ai-error-${Date.now()}`,
+                    text: error.response?.data?.error || 'I could not answer right now. Please try again.',
+                    time: new Date(),
+                    sent: false,
+                    status: 'read'
+                };
+                setConversations((prev) => ({ ...prev, [AI_USER_ID]: [...(prev[AI_USER_ID] || nextMessages), errorMessage] }));
+            }
+            return;
+        }
 
         const processAndSendMessage = (text, filePayload = null) => {
             emitSendMessage(activeUserId, text, filePayload);
@@ -1058,6 +1224,11 @@ function App() {
                 onAcceptRequest={handleAcceptRequest}
                 onRejectRequest={handleRejectRequest}
                 onOpenSearch={() => setShowSearch(true)}
+                chatSettings={chatSettings}
+                onTogglePin={(userId) => updateChatSetting(userId, 'pinned', !Boolean(chatSettings[userId]?.pinned))}
+                onToggleMute={(userId) => updateChatSetting(userId, 'muted', !Boolean(chatSettings[userId]?.muted))}
+                onClearChat={clearChat}
+                onDeleteChat={deleteChat}
             />
             <ActiveChat
                 onLogout={handleLogout}
