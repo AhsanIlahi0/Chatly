@@ -1,6 +1,6 @@
 import ChatContainer from './ChatContainer.jsx';
 
-function ActiveChat({ theme, setTheme, onLogout, activeUser, messages, isDetailTabOpen, onSendMessage, onDeleteMessage, onDeselectUser, onCloseProfile, onOpenProfile, onToggleProfile, isChatActive, currentUserId }) {
+function ActiveChat({ theme, setTheme, onLogout, activeUser, messages, isDetailTabOpen, onSendMessage, onDeleteMessage, onDeselectUser, onCloseProfile, onOpenProfile, onToggleProfile, isChatActive, currentUserId, showProfile }) {
     return (
         <div className={`${isChatActive ? 'flex' : 'hidden md:flex'} flex-1 min-w-0 flex-col overflow-hidden bg-parchment dark:bg-ink`}>
             <ChatContainer
@@ -17,6 +17,7 @@ function ActiveChat({ theme, setTheme, onLogout, activeUser, messages, isDetailT
                 onOpenProfile={onOpenProfile}
                 onToggleProfile={onToggleProfile}
                 currentUserId={currentUserId}
+                showProfile={showProfile}
             />
         </div>
     );

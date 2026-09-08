@@ -13,8 +13,8 @@ import { API_URL } from './config';
 const AI_USER_ID = 'chatly-ai';
 const AI_USER = {
     id: AI_USER_ID,
-    name: 'Meta AI',
-    username: 'meta-ai',
+    name: 'Chatly AI',
+    username: 'chatly-ai',
     avatar: emmaAvatar,
     status: 'online',
     isAi: true,
@@ -739,8 +739,14 @@ function App() {
         }));
     }, []);
 
-    const clearChat = useCallback((userId) => {
-        if (!userId) return;
+    const clearChat = useCallback(async (userId) => {
+        if (!userId || !currentUserId) return;
+
+        try {
+            await axios.delete(`${API_URL}/api/messages/clear/${currentUserId}/${userId}`);
+        } catch (error) {
+            console.error('Failed to clear chat in backend:', error);
+        }
 
         setConversations((prev) => ({
             ...prev,
@@ -768,7 +774,7 @@ function App() {
                 console.error('Failed to clear active chat:', error);
             }
         }
-    }, [activeUserId]);
+    }, [activeUserId, currentUserId]);
 
     const deleteChat = useCallback((userId) => {
         if (!userId) return;
@@ -1244,7 +1250,16 @@ function App() {
                 isChatActive={Boolean(activeUserId)}
                 currentUserId={currentUserId}
                 onOpenProfile={() => setIsDetailTabOpen(true)}
+                showProfile={isDetailTabOpen}
             />
+
+            {activeUser && (
+                <DetailTab
+                    activeUser={activeUser}
+                    isOpen={isDetailTabOpen}
+                    onClose={() => setIsDetailTabOpen(false)}
+                />
+            )}
         </div>
     );
 }

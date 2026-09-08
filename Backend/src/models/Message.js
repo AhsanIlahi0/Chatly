@@ -34,7 +34,12 @@ const MessageSchema = new mongoose.Schema({
         type: String,
         enum: ['sent', 'delivered', 'read'],
         default: 'sent'
-    }
+    },
+    hiddenFor: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: []
+    }]
 }, { timestamps: true }); // Automatically injects `createdAt` and `updatedAt` field timestamps
 
 // CRITICAL: Index the fields to ensure your database stays lightning-fast even with millions of messages

@@ -5,15 +5,18 @@ exports.getChatHistory = async (req, res) => {
     try {
         const { myId, partnerId } = req.params;
 
-        // Find messages where (I sent it to them) OR (They sent it to me)
         const history = await Message.find({
             $or: [
                 { sender: myId, receiver: partnerId },
                 { sender: partnerId, receiver: myId }
             ]
-        }).sort({ createdAt: 1 }); // Sort chronologically so old messages are at the top
+        }).sort({ createdAt: 1 });
 
-        return res.status(200).json(history);
+        const visibleHistory = history.filter((msg) =>
+            !msg.hiddenFor?.some((hiddenUserId) => String(hiddenUserId) === String(myId))
+        );
+
+        return res.status(200).json(visibleHistory);
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
@@ -27,17 +30,20 @@ exports.getConversationSummaries = async (req, res) => {
                 { sender: myId },
                 { receiver: myId }
             ]
-        }).sort({ createdAt: -1 }); // newest first
+        }).sort({ createdAt: -1 });
+
+        const visibleMessages = messages.filter((msg) =>
+            !msg.hiddenFor?.some((hiddenUserId) => String(hiddenUserId) === String(myId))
+        );
 
         const summaries = {};
 
-        for (const msg of messages) {
+        for (const msg of visibleMessages) {
             const partnerId =
                 String(msg.sender) === String(myId)
                     ? String(msg.receiver)
                     : String(msg.sender);
 
-            // Skip because we already stored the newest message
             if (summaries[partnerId]) continue;
 
             summaries[partnerId] = {
@@ -88,6 +94,45 @@ exports.deleteMessage = async (req, res) => {
         }
 
         return res.status(200).json({ success: true, messageId: messageId.toString() });
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+};
+
+exports.clearChat = async (req, res) => {
+    try {
+        const { myId, partnerId } = req.params;
+
+        if (!myId || !partnerId) {
+            return res.status(400).json({ error: 'myId and partnerId are required' });
+        }
+
+        const result = await Message.updateMany(
+            {
+                $or: [
+                    { sender: myId, receiver: partnerId },
+                    { sender: partnerId, receiver: myId }
+                ]
+            },
+            {
+                $addToSet: { hiddenFor: myId }
+            },
+            { multi: true }
+        );
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('chatCleared', {
+                userId: myId,
+                partnerId,
+                modifiedCount: result.modifiedCount || 0
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            modifiedCount: result.modifiedCount || 0
+        });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
