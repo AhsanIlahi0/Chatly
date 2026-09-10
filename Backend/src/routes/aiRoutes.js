@@ -1,6 +1,57 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const AiConversation = require('../models/AiConversation');
 
 const router = express.Router();
+
+router.get('/conversation/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: 'Invalid user ID.' });
+        }
+
+        const conversation = await AiConversation.findOne({ user: userId }).lean();
+        return res.json({ messages: conversation?.messages || [] });
+    } catch (error) {
+        console.error('Failed to load AI conversation:', error);
+        return res.status(500).json({ error: 'Failed to load AI conversation.' });
+    }
+});
+
+router.put('/conversation/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { messages } = req.body || {};
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: 'Invalid user ID.' });
+        }
+
+        if (!Array.isArray(messages)) {
+            return res.status(400).json({ error: 'Messages must be an array.' });
+        }
+
+        const normalizedMessages = messages.slice(-100).map((message) => ({
+            clientId: String(message.clientId || message.id || `${Date.now()}-${Math.random()}`),
+            role: message.role === 'assistant' ? 'assistant' : 'user',
+            text: String(message.text || '').slice(0, 8000),
+            createdAt: message.createdAt || message.time || new Date()
+        })).filter((message) => message.text.trim());
+
+        const conversation = await AiConversation.findOneAndUpdate(
+            { user: userId },
+            { $set: { messages: normalizedMessages } },
+            { new: true, upsert: true, runValidators: true }
+        ).lean();
+
+        return res.json({ messages: conversation.messages });
+    } catch (error) {
+        console.error('Failed to save AI conversation:', error);
+        return res.status(500).json({ error: 'Failed to save AI conversation.' });
+    }
+});
 
 const normalizeMessages = (messages) =>
     messages.slice(-20).map((message) => ({

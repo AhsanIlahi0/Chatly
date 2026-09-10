@@ -38,13 +38,7 @@ function App() {
 
     // ── Conversations ────────────────────────────────────────────────────────
     const [conversations, setConversations] = useState(() => {
-        try {
-            const saved = localStorage.getItem('chatly_ai_messages');
-            return saved ? { [AI_USER_ID]: JSON.parse(saved) } : {};
-        } catch (error) {
-            console.error('Failed to restore AI conversation:', error);
-            return {};
-        }
+        return {};
     });
     const [chatSettings, setChatSettings] = useState(() => {
         try {
@@ -101,14 +95,6 @@ function App() {
         () => users.find((user) => user.id === activeUserId) ?? null,
         [users, activeUserId]
     );
-
-    useEffect(() => {
-        try {
-            localStorage.setItem('chatly_ai_messages', JSON.stringify(conversations[AI_USER_ID] || []));
-        } catch (error) {
-            console.error('Failed to save AI conversation:', error);
-        }
-    }, [conversations]);
 
     useEffect(() => {
         try {
@@ -394,6 +380,46 @@ function App() {
             console.error('Failed to pull message history:', err);
         }
     }, [currentUserId, formatMessageTime]);
+
+    const fetchAiConversation = useCallback(async () => {
+        if (!currentUserId) return;
+
+        try {
+            const res = await axios.get(`${API_URL}/api/ai/conversation/${currentUserId}`);
+            const formattedMessages = res.data.messages.map((message) => ({
+                id: message.clientId,
+                text: message.text,
+                time: new Date(message.createdAt),
+                sent: message.role === 'user',
+                status: 'read'
+            }));
+
+            setConversations((prev) => ({ ...prev, [AI_USER_ID]: formattedMessages }));
+        } catch (error) {
+            console.error('Failed to load AI conversation:', error);
+        }
+    }, [currentUserId]);
+
+    const saveAiConversation = useCallback(async (messages) => {
+        if (!currentUserId) return;
+
+        try {
+            await axios.put(`${API_URL}/api/ai/conversation/${currentUserId}`, {
+                messages: messages.map((message) => ({
+                    clientId: message.id,
+                    role: message.sent ? 'user' : 'assistant',
+                    text: message.text,
+                    createdAt: message.time
+                }))
+            });
+        } catch (error) {
+            console.error('Failed to save AI conversation:', error);
+        }
+    }, [currentUserId]);
+
+    useEffect(() => {
+        fetchAiConversation();
+    }, [fetchAiConversation]);
 
     const fetchConversationSummaries = useCallback(async (userList) => {
         if (!currentUserId) return;
@@ -818,6 +844,7 @@ function App() {
             const existingMessages = conversations[AI_USER_ID] || [];
             const nextMessages = [...existingMessages, userMessage];
             setConversations((prev) => ({ ...prev, [AI_USER_ID]: nextMessages }));
+            saveAiConversation(nextMessages);
             setUsers((prev) => prev.map((user) => user.id === AI_USER_ID
                 ? { ...user, lastMessage: messageText.trim(), lastMessageAt: Date.now(), time: formatMessageTime() }
                 : user));
@@ -837,6 +864,7 @@ function App() {
                     status: 'read'
                 };
                 setConversations((prev) => ({ ...prev, [AI_USER_ID]: [...(prev[AI_USER_ID] || nextMessages), aiMessage] }));
+                saveAiConversation([...nextMessages, aiMessage]);
                 setUsers((prev) => prev.map((user) => user.id === AI_USER_ID
                     ? { ...user, lastMessage: aiMessage.text, lastMessageAt: Date.now(), time: formatMessageTime() }
                     : user));
@@ -849,6 +877,7 @@ function App() {
                     status: 'read'
                 };
                 setConversations((prev) => ({ ...prev, [AI_USER_ID]: [...(prev[AI_USER_ID] || nextMessages), errorMessage] }));
+                saveAiConversation([...nextMessages, errorMessage]);
             }
             return;
         }

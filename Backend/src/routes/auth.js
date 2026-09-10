@@ -155,7 +155,7 @@ router.post('/signup', async (req, res) => {
         // 4. ✉️ Send the email using Resend via secure HTTPS
         try {
             const { data, error } = await resend.emails.send({
-                from: 'Chatly <onboarding@resend.dev>', // Free default sandbox sender domain
+                from: 'Chatly <no-reply@chat-ly.dev>', // Free default sandbox sender domain
                 to: normalizedEmail,
                 subject: 'Your Chatly Verification Code',
                 html: `
